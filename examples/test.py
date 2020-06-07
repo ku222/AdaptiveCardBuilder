@@ -13,10 +13,7 @@ class AdaptiveCard:
         self.type = "AdaptiveCard"
         self.body = []
         self.actions = []
-        self.pointer = self.body
-                
-    def __repr__(self):
-        return str(self.__dict__)
+        self.pointer = self
     
     def set_pointer(self, item):
         self.pointer = item
@@ -26,18 +23,21 @@ class AdaptiveCard:
     
     def load_level(self, level):
         self.set_pointer(level)
-        
     
-    def add(self, item, recurse=True):
-        if type(self.pointer) == list:
-            self.pointer.append(item)
-        else:
-            self.pointer.add(item)
-        item.previous = self.pointer
+    def add(self, element, recurse=True, is_action=False):
+        self.pointer.add_action(element) if is_action else self.pointer.add_item(element)
+        element.previous = self.pointer
         if recurse:
-            if type(item.get_container()) == list:
-                self.set_pointer(item)
-        return item
+            element_container = element.get_action_container() if is_action else element.get_item_container()
+            if type(element_container) == list:
+                self.set_pointer(element)
+        return element
+    
+    def add_item(self, item):
+        self.body.append(item)
+        
+    def add_action(self, action):
+        self.actions.append(action)
     
     def up_one_level(self):
         has_previous = True if getattr(self.pointer, 'previous', 'no') != 'no' else False
@@ -45,7 +45,7 @@ class AdaptiveCard:
             self.set_pointer(self.pointer.previous)
  
     def back_to_top(self):
-        self.set_pointer(self.body)
+        self.set_pointer(self)
     
     def to_json(
         self,
@@ -64,19 +64,29 @@ class AdaptiveCard:
         
         self.schema = schema
         self.version = version
-        serialized = json.dumps(self, default=dictify, sort_keys=False)
-        return serialized if not for_print else json.loads(serialized)
-    
+        if for_print:
+            serialized = json.dumps(self, default=dictify, sort_keys=False, indent=4)
+            print(serialized)
+        else:
+            serialized = json.dumps(self, default=dictify, sort_keys=False)
+            return serialized
     
 
 class AdaptiveItem:
-    def get_container(self):
+    def get_item_container(self):
         return None
-    def add(self, item):
-        container = self.get_container()
+    def get_action_container(self):
+        return None
+    def add_item(self, item):
+        container = self.get_item_container()
         assert type(container) == list
         container.append(item)
         return item
+    def add_action(self, action):
+        container = self.get_action_container()
+        assert type(container) == list
+        container.append(action)
+        return action
     def print_self(self):
         return self.__dict__
     
@@ -87,7 +97,7 @@ class Container(AdaptiveItem):
         self.type = "Container"
         self.items = []
         self.__dict__.update(kwargs)
-    def get_container(self):
+    def get_item_container(self):
         return self.items
 
 
@@ -97,7 +107,7 @@ class ColumnSet(AdaptiveItem):
         self.type = "ColumnSet"
         self.columns = []
         self.__dict__.update(kwargs)
-    def get_container(self):
+    def get_item_container(self):
         return self.columns
     
 
@@ -107,7 +117,7 @@ class Column(AdaptiveItem):
         self.type = "Column"
         self.items = []
         self.__dict__.update(kwargs)
-    def get_container(self):
+    def get_item_container(self):
         return self.items
     
     
@@ -125,11 +135,11 @@ class ImageSet(AdaptiveItem):
         self.type = "ImageSet"
         self.images = []
         self.__dict__.update(kwargs)
-    def get_container(self):
+    def get_item_container(self):
         return self.images
     def add(self, item):
         assert type(item) == Image
-        container = self.get_container()
+        container = self.get_item_container()
         container.append(item)
         return item
     
@@ -148,7 +158,7 @@ class ActionSet(AdaptiveItem):
         self.type = "ActionSet"
         self.actions = []
         self.__dict__.update(kwargs)
-    def get_container(self):
+    def get_item_container(self):
         return self.actions
     
     
@@ -173,8 +183,10 @@ class ActionShowCard(AdaptiveItem):
         self.type = "Action.ShowCard"
         self.card = AdaptiveCard()
         self.__dict__.update(kwargs)
-    def get_container(self):
+    def get_item_container(self):
         return self.card.body
+    def get_action_container(self):
+        return self.card.actions
     
     
 class FactSet(AdaptiveItem):
@@ -183,7 +195,7 @@ class FactSet(AdaptiveItem):
         self.type = "FactSet"
         self.facts = []
         self.__dict__.update(kwargs)
-    def get_container(self):
+    def get_item_container(self):
         return self.facts
 
 
@@ -231,12 +243,10 @@ card.up_one_level()
 card.add(ActionSet())
 card.add(ActionShowCard(title="Comment"))
 card.add(InputText(ID='comment', isMultiline="true", placeholder="Enter your comment"))
-card.add(ActionSet())
-card.add(ActionSubmit(title="OK"))
-card.up_one_level()
+card.add(ActionSubmit(title="OK"), is_action=True)
 card.up_one_level()
 card.add(ActionOpenUrl(url="someurl.com", title="View"))
-card.to_json()
+card.to_json(for_print=False)
 
 #%%
 
@@ -248,8 +258,10 @@ card.add(TextBlock("This is some text"))
 card.add(Container(style="emphasis"))
 card.add(TextBlock("Emphasis Container"))
 card.up_one_level()
+card.up_one_level()
 card.add(TextBlock("Default container again"))
-card.add(TextBlock("Submit Action"))
+card.add(InputText(ID="1"))
+card.add(ActionSubmit(title="Submit Action"), is_action=True)
 card.to_json()
 
 #%%
@@ -276,6 +288,7 @@ for _ in range(8):
 
 card = AdaptiveCard()
 for _ in range(2):
+    card.add(TextBlock(text="0.45 miles away", separator="true", spacing="large"))
     card.add(ColumnSet())
     card.add(Column(width=2))
     card.add(TextBlock(text="BANK OF LINGFIELD BRANCH"))
@@ -326,21 +339,21 @@ card.to_json()
 sql_output = {
     "Table1": [
         {
-            'Transaction ID': 'TRN-349824',
-            'Amount': '£400.50',
-            'Receiver': "Sainsbury's",
+            'ID': 'TRN-349824',
+            'Amount': '$400.50',
+            'Receiver': "Walmart",
             'Date': '29-05-2020'
         },
         {
-            'Transaction ID': 'TRN-334244',
-            'Amount': '£50.35',
-            'Receiver': 'EasyJet',
+            'ID': 'TRN-334244',
+            'Amount': '$50.35',
+            'Receiver': 'Delta Airlines',
             'Date': '01-06-2020'
         },
         {
-            'Transaction ID': 'TRN-503134',
-            'Amount': '£60.50',
-            'Receiver': 'Asda',
+            'ID': 'TRN-503134',
+            'Amount': '$60.50',
+            'Receiver': 'Smoothie King',
             'Date': '03-06-2020'
         }
     ]
@@ -349,16 +362,30 @@ sql_output = {
 def to_tabular(json_list):
     first_element = json_list[0]
     headers = list(first_element.keys())
-    result_table = [headers]
+    result_table = []
     for item in json_list:
         item_values = list(item.values())
         result_table.append(item_values)
-    return result_table
+    return (headers, result_table)
 
-table = to_tabular(sql_output['Table1'])
+(headers, table) = to_tabular(sql_output['Table1'])
 
+#%%
+headers
+#%%
 card = AdaptiveCard() # Initialize our card
+card.add(ColumnSet())
 
+for header in headers:
+    card.add(Column())
+    card.add(TextBlock(text=header, horizontalAlignment="center", weight="Bolder"))
+    card.up_one_level()
+
+card.add(Column())
+card.add(TextBlock(text="Suspicious", horizontalAlignment="center", weight="Bolder"))
+card.back_to_top()
+
+# Now let's add our transactions
 for transaction in table:
     card.add(ColumnSet()) # 'add' pointer is now inside the ColumnSet
     

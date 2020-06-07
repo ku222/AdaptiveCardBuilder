@@ -8,10 +8,7 @@ class AdaptiveCard:
         self.type = "AdaptiveCard"
         self.body = []
         self.actions = []
-        self.pointer = self.body
-                
-    def __repr__(self):
-        return str(self.__dict__)
+        self.pointer = self
     
     def set_pointer(self, item):
         self.pointer = item
@@ -22,16 +19,20 @@ class AdaptiveCard:
     def load_level(self, level):
         self.set_pointer(level)
     
-    def add(self, item, recurse=True):
-        if type(self.pointer) == list:
-            self.pointer.append(item)
-        else:
-            self.pointer.add(item)
-        item.previous = self.pointer
+    def add(self, element, recurse=True, is_action=False):
+        self.pointer.add_action(element) if is_action else self.pointer.add_item(element)
+        element.previous = self.pointer
         if recurse:
-            if type(item.get_container()) == list:
-                self.set_pointer(item)
-        return item
+            element_container = element.get_action_container() if is_action else element.get_item_container()
+            if type(element_container) == list:
+                self.set_pointer(element)
+        return element
+    
+    def add_item(self, item):
+        self.body.append(item)
+        
+    def add_action(self, action):
+        self.actions.append(action)
     
     def up_one_level(self):
         has_previous = True if getattr(self.pointer, 'previous', 'no') != 'no' else False
@@ -39,7 +40,7 @@ class AdaptiveCard:
             self.set_pointer(self.pointer.previous)
  
     def back_to_top(self):
-        self.set_pointer(self.body)
+        self.set_pointer(self)
     
     def to_json(
         self,
@@ -58,19 +59,29 @@ class AdaptiveCard:
         
         self.schema = schema
         self.version = version
-        serialized = json.dumps(self, default=dictify, sort_keys=False)
-        return serialized if not for_print else json.loads(serialized)
-    
+        if for_print:
+            serialized = json.dumps(self, default=dictify, sort_keys=False, indent=4)
+            print(serialized)
+        else:
+            serialized = json.dumps(self, default=dictify, sort_keys=False)
+            return serialized
     
 
 class AdaptiveItem:
-    def get_container(self):
+    def get_item_container(self):
         return None
-    def add(self, item):
-        container = self.get_container()
+    def get_action_container(self):
+        return None
+    def add_item(self, item):
+        container = self.get_item_container()
         assert type(container) == list
         container.append(item)
         return item
+    def add_action(self, action):
+        container = self.get_action_container()
+        assert type(container) == list
+        container.append(action)
+        return action
     def print_self(self):
         return self.__dict__
     
@@ -81,7 +92,7 @@ class Container(AdaptiveItem):
         self.type = "Container"
         self.items = []
         self.__dict__.update(kwargs)
-    def get_container(self):
+    def get_item_container(self):
         return self.items
 
 
@@ -91,7 +102,7 @@ class ColumnSet(AdaptiveItem):
         self.type = "ColumnSet"
         self.columns = []
         self.__dict__.update(kwargs)
-    def get_container(self):
+    def get_item_container(self):
         return self.columns
     
 
@@ -101,7 +112,7 @@ class Column(AdaptiveItem):
         self.type = "Column"
         self.items = []
         self.__dict__.update(kwargs)
-    def get_container(self):
+    def get_item_container(self):
         return self.items
     
     
@@ -119,11 +130,11 @@ class ImageSet(AdaptiveItem):
         self.type = "ImageSet"
         self.images = []
         self.__dict__.update(kwargs)
-    def get_container(self):
+    def get_item_container(self):
         return self.images
     def add(self, item):
         assert type(item) == Image
-        container = self.get_container()
+        container = self.get_item_container()
         container.append(item)
         return item
     
@@ -142,7 +153,7 @@ class ActionSet(AdaptiveItem):
         self.type = "ActionSet"
         self.actions = []
         self.__dict__.update(kwargs)
-    def get_container(self):
+    def get_item_container(self):
         return self.actions
     
     
@@ -167,8 +178,10 @@ class ActionShowCard(AdaptiveItem):
         self.type = "Action.ShowCard"
         self.card = AdaptiveCard()
         self.__dict__.update(kwargs)
-    def get_container(self):
+    def get_item_container(self):
         return self.card.body
+    def get_action_container(self):
+        return self.card.actions
     
     
 class FactSet(AdaptiveItem):
@@ -177,7 +190,7 @@ class FactSet(AdaptiveItem):
         self.type = "FactSet"
         self.facts = []
         self.__dict__.update(kwargs)
-    def get_container(self):
+    def get_item_container(self):
         return self.facts
 
 
@@ -187,3 +200,11 @@ class Fact(AdaptiveItem):
         self.type = "FactSet"
         self.title = title
         self.value = value
+      
+
+class InputText(AdaptiveItem):
+    def __init__(self, ID, **kwargs):
+        super().__init__()
+        self.type = "Input.Text"
+        self.id = ID
+        self.__dict__.update(kwargs)
