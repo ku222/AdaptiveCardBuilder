@@ -1,11 +1,10 @@
 
-# Adaptive Card Builder (Python)
+# Python Adaptive Card Builder (PREVIEW)
 
-<br>
-
-**Easily Build and Export Adaptive Cards Programmatically**<br>
-- Construct adaptive cards element-by-element, without the learning curve
-- Build pythonically, with minimal abstraction while preserving readability
+**Easily Build and Export Adaptive Cards Through Python**<br>
+- Programmatically construct adaptive cards like Lego, without the learning curve of Adaptive Card 'Templating'
+- Avoids the deeply-nested visual format of traditional JSON editing
+- Build pythonically, but with minimal abstraction while preserving readability
 - Send output to any channel with Adaptive Card support to be rendered.
 
 <br>
@@ -108,7 +107,7 @@ print(element)
 <br>
 <br>
 
-**Pointer Logic** <br>
+### Pointer Logic
 
 Central to the ```AdaptiveCard``` class is an internal ```pointer``` attribute. When we add an element to the card, the element is by default **added to the item container** of whichever object is being pointed at. 
 <br>
@@ -128,7 +127,7 @@ The ```card.add()``` method by default adds any new elements to the **item** con
 
 <br>
 
-**Recursing Into an Added Element** <br>
+### Recursing Into an Added Element
 
 **When adding elements that can *themselves* contain other elements** (e.g. column sets and columns), the pointer will by default **recurse into the added element**, so that any elements added thereafter will go straight into the added element's container (making our code less verbose). <br>
 
@@ -217,7 +216,8 @@ Rendered: <br>
 Observe that when adding a ```TextBlock``` to a ```Column```'s items, the pointer stays at the ```Column``` level, rather than recursing into the ```TextBlock```. The ```add()``` method will only recurse into the added element if it has an **item** or **action** container within it.
 
 Because of the depth-first approach, we'll need to **back ourselves out** of a container once we are done adding elements to it. <br>
-One easy method to doing so is by using the ```up_one_level()``` method, can be called multiple times and just moves us back up the element tree:
+One easy method to doing so is by using the ```up_one_level()``` method, can be called multiple times and just moves the pointer one step up the element tree.
+
 
 ```python
 card = AdaptiveCard()
@@ -292,6 +292,36 @@ card.add(TextBlock(text="Column 2 Contents"))
 Rendered: <br>
 
 <img src="https://user-images.githubusercontent.com/44293915/83967818-d17a6980-a8bc-11ea-9518-1a3e15dfa38e.png" alt="table" width="500"/>
+
+<br>
+<br>
+
+We can also use the ```card.save_level()``` method to create a "checkpoint" at any level if we intend to back ourselves out to the level we are currently at in our code block. To "reload" to that checkpoint, use ```card.load_level(checkpoint)```.
+
+```python
+# checkpoints example
+card = AdaptiveCard()
+card.add(Container())
+card.add(TextBlock(text="Text as the first item, at the container level"))
+
+# create checkpoint here
+container_level = card.save_level()
+
+# add nested columnsets and columns for fun
+for i in range(1, 6):
+    card.add(ColumnSet())
+    card.add(Column(style="emphasis"))
+    card.add(TextBlock(text=f"Nested Column {i}"))
+    # our pointer continues to move downwards into the nested structure
+
+# reset pointer back to container level
+card.load_level(container_level)
+card.add(TextBlock(text="Text at the container level, below all the nested containers"))
+card.to_json()
+```
+
+
+<img src="https://user-images.githubusercontent.com/44293915/83975014-3055d800-a8e9-11ea-8f6a-3284ee9a48db.png" alt="table" width="450"/>
 
 <br>
 <br>
@@ -376,28 +406,72 @@ Table with actionable buttons unique to each row:
 <br>
 <br>
 
+
+**Full Code** <br>
+Here's our full Adaptive Card Builder-related code for creating the table from our input data:
+
+```python
+card = AdaptiveCard()
+
+# Add our first "row" for table headers
+card.add(ColumnSet()) 
+
+# Add headers as columns + bold textblocks
+for header in headers:
+    card.add(Column()) 
+    card.add(TextBlock(text=header, horizontalAlignment="center", weight="Bolder"))
+    card.up_one_level() # Back to ColumnSet level
+
+# Back to Card's main body
+card.back_to_top()
+
+# Adding our transactions
+for transaction in table:
+    card.add(ColumnSet()) 
+    
+    for element in transaction:
+        card.add(Column()) 
+        card.add(TextBlock(text=element, horizontalAlignment="center"))
+        card.up_one_level() # move pointer back to ColumnSet level
+
+    # Before moving to the next row, add a "Flag" button
+    card.add(Column())
+    card.add(ActionSet())
+    flag_url = "https://pngimage.net/wp-content/uploads/2018/06/red-flag-png-5.png"
+    transaction_id = transaction[0]
+    data = {"ID": transaction_id} # data to submit to our hosting interface
+    card.add(ActionSubmit(iconUrl=flag_url, data=data), is_action=True)
+    card.back_to_top() # Go back to the top level, ready to add our next row
+```
+
+
+<br>
+<br>
+
+### Step-by-Step Walkthrough <br>
+
 **Raw Data Format** <br>
 Picture this kind of HTTP response from a SQL database query regarding transactions data:
-```js
+```json
 sql_output = {
 	"Table1": [
 		{
-			'ID': 'TRN-349824',
-			'Amount': '$400.50',
-			'Receiver': "Walmart",
-			'Date': '29-05-2020'
+			"ID": "TRN-349824",
+			"Amount": "$400.50",
+			"Receiver": "Walmart",
+			"Date": "29-05-2020"
 		},
 		{
-			'ID': 'TRN-334244',
-			'Amount': '$50.35',
-			'Receiver': 'Delta Airlines',
-			'Date': '01-06-2020'
+			"ID": "TRN-334244",
+			"Amount": "$50.35",
+			"Receiver": "Delta Airlines",
+			"Date": "01-06-2020"
 		},
 		{
-			'ID': 'TRN-503134',
-			'Amount': '$60.50',
-			'Receiver': 'Smoothie King',
-			'Date': '03-06-2020'
+			"ID": "TRN-503134",
+			"Amount": "$60.50",
+			"Receiver": "Smoothie King",
+			"Date": "03-06-2020"
 		}
 	]
 }
@@ -450,6 +524,7 @@ for header in headers:
 
 <br>
 
+Here's what we have so far:
 
 |ID|Amount|Reciever|Date|Suspicious
 |--|--|--|--|--|
@@ -460,17 +535,7 @@ for header in headers:
 **Let's now add the transactions, line by line**
 
 ```python
-card = AdaptiveCard()
-
-# Add our first "row" for table headers
-card.add(ColumnSet()) 
-
-# Add headers as columns + bold textblocks
-for header in headers:
-    card.add(Column()) 
-    card.add(TextBlock(text=header, horizontalAlignment="center", weight="Bolder"))
-    card.up_one_level() # Back to ColumnSet level
-
+...
 # Back to Card's main body
 card.back_to_top()
 
@@ -495,166 +560,29 @@ Here's what we have after the inner loop is complete (first row):
 Now let's add the button as the last column entry
 
 ```python
-card = AdaptiveCard()
-
-# ColumnSets are our 'rows'
-card.add(ColumnSet()) 
-
-# Add headers as columns + bold textblocks
-for header in headers:
-    card.add(Column()) 
-    card.add(TextBlock(text=header, horizontalAlignment="center", weight="Bolder"))
-    card.up_one_level() # Back to ColumnSet level
-
-# Back to Card's main body
-card.back_to_top()
-
-# Adding our transactions
-for transaction in table:
-    card.add(ColumnSet()) 
-    
-    # Add transaction's id, amount, date etc.
+...
     for element in transaction:
         card.add(Column()) 
         card.add(TextBlock(text=element, horizontalAlignment="center"))
         card.up_one_level() # move pointer back to ColumnSet level
-    
+
     # Before moving to the next row, add a "Flag" button
     card.add(Column())
     card.add(ActionSet())
-    transaction_id = transaction[0]
     flag_url = "https://pngimage.net/wp-content/uploads/2018/06/red-flag-png-5.png"
-    card.add(ActionSubmit(iconUrl=flag_url, data={"ID": transaction_id}), is_action=True)
+    transaction_id = transaction[0]
+    data = {"ID": transaction_id} # data to submit to our hosting interface
+    card.add(ActionSubmit(iconUrl=flag_url, data=data), is_action=True)
     card.back_to_top() # Go back to the top level, ready to add our next row
 ```
 
 
-
-
-
-## Using Action ShowCards
-
-An ```ActionShowCard``` is an interactive button that expands into a new ```AdaptiveCard``` when clicked on.
-
-This is the structure of a standard ```ActionShowCard```:
-
-```python
-element = ActionShowCard()
-print(element)
-
->>> {
-        "type": "Action.ShowCard",
-        "card": {
-            "schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-            "version": "1.0",
-            "type": "AdaptiveCard",
-            "body": [],
-            "actions": []
-        }
-    }
-
-```
+|ID|Amount|Reciever|Date|Suspicious
+|--|-------|-------|-----|---------|
+|TRN-349824|$400.50|Walmart|29-05-2020| [FLAG-BUTTON]
 
 <br>
 
-Thankfully, we can simply treat this as we would any other container class - for all intents and purposes, ```ActionShowCard``` has an item container (the inner ```AdaptiveCard```'s ```body=[]```) and an action container (the inner ```AdaptiveCard```'s ```actions=[]```).
-<br>
 
-Behind the hood, when we add an ```ActionShowCard``` to our main card, our pointer moves to point to the ```ActionShowCard``` rather than its inner ```AdaptiveCard```. This makes no material difference to the ```add()``` method though - which will pretend that the inner ```AdaptiveCard```'s ```body``` and ```action``` containers simply belong to the ```ActionShowCard```.
-
-So let's add:
-- An ```InputText``` box to the ```body``` container; and
-- An ```ActionSubmit``` button to the ```actions``` container:
-
-
-```python
-# Repeat from above - adding url action using is_action=True
-card.add(ActionOpenUrl(url="someurl.com", title="Open Me"), is_action=True)
-
-    # |--Card                 <- Pointer
-    # |   |--Schema="XXX"
-    # |   |--Version="1.0"
-    # |   |--Body               
-    # |       |--TextBlock
-    # |       |--TextBlock
-    # |       |--TextBlock
-    # |       |--ColumnSet       
-    # |           |--Column        
-    # |               |--TextBlock
-    # |           |--Column         
-    # |               |--TextBlock
-    # |   |--Actions                    
-    # |       |--ActionOpenUrl
-
-# add showcard to actions with using is_action=True
-card.add(ActionShowCard(title="Click to Comment"), is_action=True)
-
-    # |--Card                   
-    # |   |--Schema="XXX"
-    # |   |--Version="1.0"
-    # |   |--Body               
-    # |       |--TextBlock
-    # |       |--TextBlock
-    # |       |--TextBlock
-    # |       |--ColumnSet       
-    # |           |--Column        
-    # |               |--TextBlock
-    # |           |--Column         
-    # |               |--TextBlock
-    # |   |--Actions
-    # |       |--ActionOpenUrl
-    # |       |--ActionShowCard         <- Pointer
-    # |               |--AdaptiveCard
-    # |                   |--Body=[]
-    # |                   |--Actions=[]
-
-# Add input box to the inner card's body
-card.add(InputText(ID="input", placeholder="Add Comment Here"))
-
-    # |--Card                   
-    # |   |--Schema="XXX"
-    # |   |--Version="1.0"
-    # |   |--Body               
-    # |       |--TextBlock
-    # |       |--TextBlock
-    # |       |--TextBlock
-    # |       |--ColumnSet       
-    # |           |--Column        
-    # |               |--TextBlock
-    # |           |--Column         
-    # |               |--TextBlock
-    # |   |--Actions
-    # |       |--ActionOpenUrl
-    # |       |--ActionShowCard         <- Pointer
-    # |               |--AdaptiveCard
-    # |                   |--Body
-    # |                       |--InputText
-    # |                   |--Actions=[]
-
-# Add submit action to the inner card's actions
-card.add(ActionSubmit(title="OK"), is_action=True)
-
-    # |--Card                   
-    # |   |--Schema="XXX"
-    # |   |--Version="1.0"
-    # |   |--Body               
-    # |       |--TextBlock
-    # |       |--TextBlock
-    # |       |--TextBlock
-    # |       |--ColumnSet       
-    # |           |--Column        
-    # |               |--TextBlock
-    # |           |--Column         
-    # |               |--TextBlock
-    # |   |--Actions
-    # |       |--ActionOpenUrl
-    # |       |--ActionShowCard         <- Pointer
-    # |               |--AdaptiveCard
-    # |                   |--Body
-    # |                       |--InputText
-    # |                   |--Actions
-    # |                       |--ActionSubmit
-```
-
-
+**When the outer loop is complete**, we have a fully populated table complete with buttons on each row that a user can click on to report suspicious transactions. Each button is specific to the row, and will submit the transaction ID of that row (or whatever data we like) to whichever interface is hosting the Adaptive Card.
 

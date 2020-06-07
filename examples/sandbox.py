@@ -477,4 +477,20 @@ card.to_json()
 
 #%%
 
-import pypicheck
+card = AdaptiveCard()
+card.add(Container())
+card.add(TextBlock(text="Text as the first item, at the container level"))
+
+# create checkpoint
+container_level = card.save_level()
+
+# add nested columnsets and columns for fun
+for i in range(1, 6):
+    card.add(ColumnSet())
+    card.add(Column(style="emphasis"))
+    card.add(TextBlock(text=f"Nested Column {i}"))
+
+# jump back to container level
+card.load_level(container_level)
+card.add(TextBlock(text="Text at the container level, below all the nested containers"))
+card.to_json()

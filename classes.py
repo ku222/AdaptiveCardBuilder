@@ -23,8 +23,10 @@ class AdaptiveCard:
         self.pointer.add_action(element) if is_action else self.pointer.add_item(element)
         element.previous = self.pointer
         if recurse:
-            element_container = element.get_action_container() if is_action else element.get_item_container()
-            if type(element_container) == list:
+            # check if added element has any containers of its own
+            element_item_container = element.get_item_container()
+            element_action_container = element.get_action_container()
+            if type(element_item_container) == list or type(element_action_container) == list:
                 self.set_pointer(element)
         return element
     
@@ -82,9 +84,17 @@ class AdaptiveItem:
         assert type(container) == list
         container.append(action)
         return action
-    def print_self(self):
-        return self.__dict__
-    
+    def __str__(self):
+        def dictify(item):
+            has_pointer = True if getattr(item, 'pointer', 'no') != 'no' else False
+            has_previous = True if getattr(item, 'previous', 'no') != 'no' else False
+            if has_pointer:
+                del item.pointer
+            if has_previous:
+                del item.previous
+            return item.__dict__
+        serialized = json.dumps(self, default=dictify, sort_keys=False, indent=4)
+        return serialized
     
 class Container(AdaptiveItem):
     def __init__(self, **kwargs):
@@ -153,7 +163,7 @@ class ActionSet(AdaptiveItem):
         self.type = "ActionSet"
         self.actions = []
         self.__dict__.update(kwargs)
-    def get_item_container(self):
+    def get_action_container(self):
         return self.actions
     
     
