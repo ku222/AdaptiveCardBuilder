@@ -276,8 +276,10 @@ Rendered: <br>
 <br>
 <br>
 
+## Adding Actions
 
-We can easily incorporate expandable "Show Cards", input boxes, and actionable buttons too.
+The ```add()``` method has an optional ```is_action``` parameter - if we set this to ```True``` when adding an element to the object being pointed at, then the element is instead added to that object's **actions** container (if it has one).
+
 Let's first move our pointer back to the top level using the ```back_to_top()``` method:
 
 ```python
@@ -300,9 +302,9 @@ card.back_to_top() # back to top of tree
 
 <br>
 
-Now let's add actions to the card's **Actions** container. <br>
+Our pointer is now pointing at the main Card object. <br>
+Because it has an **Actions** container, we can add actions to it by setting ```is_action=True``` within the ```add()``` method:
 
-The ```add()``` method has an optional ```is_action``` parameter - if we set this to ```True``` when adding an element, then the element is added to the card's Actions container instead of its Body:
 
 ```python
 # Adding single url action
@@ -333,6 +335,7 @@ card.add(ActionOpenUrl(url="someurl.com", title="Open Me"), is_action=True)
 <br>
 <br>
 
+**Using Action Showcards** <br>
 We can also add actions from 
 
 ```python
