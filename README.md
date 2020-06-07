@@ -9,6 +9,18 @@
 
 <br>
 
+**View this package on pypi** <br>
+https://pypi.org/project/adaptivecardbuilder/
+
+<br>
+
+**Installation via pip** <br>
+```python
+pip install adaptivecardbuilder
+```
+
+<br>
+
 **Learn about Adaptive Cards:** <br>
 - Home Page: https://adaptivecards.io/
 - Adaptive Card Designer: https://adaptivecards.io/designer/
