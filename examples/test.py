@@ -28,8 +28,10 @@ class AdaptiveCard:
         self.pointer.add_action(element) if is_action else self.pointer.add_item(element)
         element.previous = self.pointer
         if recurse:
-            element_container = element.get_action_container() if is_action else element.get_item_container()
-            if type(element_container) == list:
+            # check if added element has any containers of its own
+            element_item_container = element.get_item_container()
+            element_action_container = element.get_action_container()
+            if type(element_item_container) == list or type(element_action_container) == list:
                 self.set_pointer(element)
         return element
     
@@ -88,7 +90,15 @@ class AdaptiveItem:
         container.append(action)
         return action
     def __str__(self):
-        serialized = json.dumps(self, default=lambda o: o.__dict__, sort_keys=False, indent=4)
+        def dictify(item):
+            has_pointer = True if getattr(item, 'pointer', 'no') != 'no' else False
+            has_previous = True if getattr(item, 'previous', 'no') != 'no' else False
+            if has_pointer:
+                del item.pointer
+            if has_previous:
+                del item.previous
+            return item.__dict__
+        serialized = json.dumps(self, default=dictify, sort_keys=False, indent=4)
         return serialized
     
 class Container(AdaptiveItem):
@@ -158,7 +168,7 @@ class ActionSet(AdaptiveItem):
         self.type = "ActionSet"
         self.actions = []
         self.__dict__.update(kwargs)
-    def get_item_container(self):
+    def get_action_container(self):
         return self.actions
     
     
@@ -214,8 +224,36 @@ class InputText(AdaptiveItem):
         self.id = ID
         self.__dict__.update(kwargs)
     
-    
-      
+#%%
+# initialize card
+card = AdaptiveCard()
+
+# Add a textblock
+card.add(TextBlock(text="0.45 miles away", separator="true", spacing="large"))
+
+# add column set
+card.add(ColumnSet())
+
+# First column contents
+card.add(Column(width=2))
+card.add(TextBlock(text="BANK OF LINGFIELD BRANCH"))
+card.add(TextBlock(text="NE Branch", size="ExtraLarge", weight="Bolder", spacing="None"))
+card.add(TextBlock(text="4.2 stars", isSubtle=True, spacing="None"))
+card.add(TextBlock(text=f"Some review text for illustration", size="Small", wrap="true"))
+
+# Back up to column set
+card.up_one_level() 
+
+# Second column contents
+card.add(Column(width=1))
+card.add(Image(url="https://s17026.pcdn.co/wp-content/uploads/sites/9/2018/08/Business-bank-account-e1534519443766.jpeg"))
+
+# Output to json
+card.to_json()
+#%%
+element = ActionShowCard()
+print(element)
+
 #%%
 
 card = AdaptiveCard()
@@ -241,11 +279,11 @@ card.add(Fact("Assigned to", "Matt Hidinger"))
 card.add(Fact("Due date", "Not set"))
 card.up_one_level()
 card.add(ActionSet())
-card.add(ActionShowCard(title="Comment"))
-card.add(InputText(ID='comment', isMultiline="true", placeholder="Enter your comment"))
+card.add(ActionShowCard(title="Comment"), is_action=True)
+card.add(InputText(ID='comment', isMultiline="true", placeholder="Enter your comment"), is_action=True)
 card.add(ActionSubmit(title="OK"), is_action=True)
 card.up_one_level()
-card.add(ActionOpenUrl(url="someurl.com", title="View"))
+card.add(ActionOpenUrl(url="someurl.com", title="View"), is_action=True)
 card.to_json(for_print=False)
 
 #%%
@@ -262,7 +300,17 @@ card.add(TextBlock(text="<Column 1 Contents>"))
 card.up_one_level() # move back to the column set level
 
 card.add(Column(width=1))
-card.add(TextBlock(text="Column 2 Contents"))
+card.add(TextBlock(text="<Column 2 Contents>"))
+
+card.back_to_top() # back to top level
+
+# Adding single url action
+card.add(ActionOpenUrl(url="someurl.com", title="Open Me"), is_action=True)
+
+# Add show card
+card.add(ActionShowCard(title="Click to Comment"), is_action=True)
+card.add(InputText(ID="input", placeholder="Add Comment Here"))
+card.add(ActionSubmit(title="OK"), is_action=True)
 
 card.to_json()
 
@@ -293,6 +341,13 @@ card.to_json(version="1.0")
 #%%
 
 card = AdaptiveCard()
+card.add()
+
+#%%
+
+#%%
+
+card = AdaptiveCard()
 card.add(ImageSet())
 url = "https://adaptivecards.io/content/cats/1.png"
 for _ in range(8):
@@ -317,8 +372,8 @@ for _ in range(2):
     card.up_one_level() #Back up to Container
 
     card.add(ActionSet())
-    card.add(ActionOpenUrl(url="https://adaptivecards.io/content/cats/1.png", title="cats here"))
-    card.add(ActionShowCard(title="Action Item"))
+    card.add(ActionOpenUrl(url="https://adaptivecards.io/content/cats/1.png", title="cats here"), is_action=True)
+    card.add(ActionShowCard(title="Action Item"), is_action=True)
     card.add(TextBlock(text="ALL APPOINTMENTS"))
 
     appointments = [("04:00", "08:00") for _ in range(5)]
@@ -337,7 +392,7 @@ for _ in range(2):
         card.up_one_level()
         card.add(Column())
         card.add(ActionSet())
-        card.add(ActionSubmit(title="Book this!"))
+        card.add(ActionSubmit(title="Book this!"), is_action=True)
         card.load_level(action_showcard_level)
     
     card.back_to_top()
@@ -386,7 +441,7 @@ def to_tabular(json_list):
 (headers, table) = to_tabular(sql_output['Table1'])
 
 #%%
-headers
+headers 
 #%%
 card = AdaptiveCard() # Initialize our card
 card.add(ColumnSet())
@@ -414,7 +469,7 @@ for transaction in table:
     card.add(ActionSet())
     transaction_id = transaction[0]
     flag_url = "https://pngimage.net/wp-content/uploads/2018/06/red-flag-png-5.png"
-    card.add(ActionSubmit(iconUrl=flag_url, data={"Transaction_ID": transaction_id}))
+    card.add(ActionSubmit(iconUrl=flag_url, data={"ID": transaction_id}), is_action=True)
     card.back_to_top() # Go back to the top level, ready to add our next row
 
 card.to_json()
