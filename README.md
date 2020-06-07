@@ -32,6 +32,8 @@ pip install adaptivecardbuilder
 ### Adaptive Card Builder "Hello World":
 
 ```python
+from adaptivecardbuilder import *
+
 # initialize card
 card = AdaptiveCard()
 
