@@ -1,7 +1,7 @@
 LICENSE.txt
 README.md
 setup.py
-src/classes.py
+src/adaptivecardbuilder.py
 src/adaptivecardbuilder.egg-info/PKG-INFO
 src/adaptivecardbuilder.egg-info/SOURCES.txt
 src/adaptivecardbuilder.egg-info/dependency_links.txt
