@@ -96,6 +96,7 @@ class AdaptiveItem:
         serialized = json.dumps(self, default=dictify, sort_keys=False, indent=4)
         return serialized
     
+    
 class Container(AdaptiveItem):
     def __init__(self, **kwargs):
         super().__init__()

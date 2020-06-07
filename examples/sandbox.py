@@ -356,48 +356,67 @@ for _ in range(8):
 
 #%%
 
+branches = ["NE Branch", "SE Branch", "SW Branch", "NW Branch"]
+distances = {
+    "NE Branch": 4.5,
+    "SE Branch": 5.0,
+    "SW Branch": 6.5,
+    "NW Branch": 7.0
+}
+appointments = {
+    "NE Branch": [("08:00", "09:00"), ("09:15", "10:30")],
+    "SE Branch": [("09:00", "09:30"), ("13:15", "14:15"), ("15:00", "17:00")],
+    "SW Branch": [("11:00", "13:30")],
+    "NW Branch": [("08:15", "08:45"), ("13:15", "14:15"), ("15:00", "17:00"), ("17:00", "18:00")]
+}
+
 card = AdaptiveCard()
-for _ in range(2):
-    card.add(TextBlock(text="0.45 miles away", separator="true", spacing="large"))
+
+for branch in branches:
+    card.add(TextBlock(text=f"{distances[branch]} miles away", separator="true", spacing="large"))
     card.add(ColumnSet())
+    
+    # First column - bank info
     card.add(Column(width=2))
     card.add(TextBlock(text="BANK OF LINGFIELD BRANCH"))
-    card.add(TextBlock(text="NE Branch", size="ExtraLarge", weight="Bolder", spacing="None"))
-    card.add(TextBlock(text="4.2 stars", isSubtle=True, spacing="None"))
-    card.add(TextBlock(text="Some review"*10, size="Small", wrap="true"))
+    card.add(TextBlock(text=branch, size="ExtraLarge", weight="Bolder", spacing="None"))
+    card.add(TextBlock(text="5 stars", isSubtle=True, spacing="None"))
+    card.add(TextBlock(text="Bank Review"*10, size="Small", wrap="true"))
+    
     card.up_one_level() # Back up to column set
+    
+    # Second column - image
     card.add(Column(width=1))
     card.add(Image(url="https://s17026.pcdn.co/wp-content/uploads/sites/9/2018/08/Business-bank-account-e1534519443766.jpeg"))
+    
     card.up_one_level() #Back up to column set
     card.up_one_level() #Back up to Container
 
     card.add(ActionSet())
-    card.add(ActionOpenUrl(url="https://adaptivecards.io/content/cats/1.png", title="cats here"), is_action=True)
+    card.add(ActionOpenUrl(url="https://adaptivecards.io/content/cats/1.png", title="View on Map"), is_action=True)
+    
+    # expandible card to show all our bank-specific appointment items
     card.add(ActionShowCard(title="Action Item"), is_action=True)
     card.add(TextBlock(text="ALL APPOINTMENTS"))
-
-    appointments = [("04:00", "08:00") for _ in range(5)]
+    
+    # Save a checkpoint at this level to come back to later
     action_showcard_level = card.save_level()
 
-    for (start_time, end_time) in appointments:
+    for (start_time, end_time) in appointments[branch]:
         card.add(ColumnSet())
-        card.add(Column())
-        card.add(TextBlock(text="Appointment"))
-        card.up_one_level()
-        card.add(Column())
-        card.add(TextBlock(text=f"{start_time}"))
-        card.up_one_level()
-        card.add(Column())
-        card.add(TextBlock(text=f"{end_time}"))
-        card.up_one_level()
-        card.add(Column())
+        row_items = ["Slot", start_time, end_time]
+        for item in row_items:
+            card.add(Column(style="emphasis", verticalContentAlignment="Center"))
+            card.add(TextBlock(text=item, horizontalAlignment="Center"))
+            card.up_one_level() # Back to column set level
+        card.add(Column(verticalContentAlignment="Center"))
         card.add(ActionSet())
-        card.add(ActionSubmit(title="Book this!"), is_action=True)
+        card.add(ActionSubmit(title="Book this!", data={"Appt": f"({start_time}, {end_time})"}), is_action=True)
         card.load_level(action_showcard_level)
     
     card.back_to_top()
     
-card.to_json()
+card.to_json(version="1.2")
 
 #%%
 

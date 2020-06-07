@@ -386,7 +386,7 @@ card.add(ActionOpenUrl(url="someurl.com", title="Open Me"), is_action=True)
 <br>
 
 
-## Worked Example - Creating a simple table with row-specific action buttons
+## Worked Example 1 - Creating a simple table with row-specific action buttons
 
 <br> 
 
@@ -586,3 +586,128 @@ Now let's add the button as the last column entry
 
 **When the outer loop is complete**, we have a fully populated table complete with buttons on each row that a user can click on to report suspicious transactions. Each button is specific to the row, and will submit the transaction ID of that row (or whatever data we like) to whichever interface is hosting the Adaptive Card.
 
+
+<br>
+<br>
+
+# Worked Example 2: Banks and Appointments
+
+
+### List of nearest banks and their free appointment slots
+
+
+Example of the finished product: <br>
+
+<img src="https://user-images.githubusercontent.com/44293915/83976434-ba09a380-a8f1-11ea-9ec6-711fe357e128.png" alt="table" width="500"/>
+
+<br>
+
+
+Here's an example of the data behind this:
+
+```python
+# branch names
+branches = ["NE Branch", "SE Branch", "SW Branch", "NW Branch"]
+
+# distances in miles
+distances = { 
+    "NE Branch": 4.5,
+    "SE Branch": 5.0,
+    "SW Branch": 6.5,
+    "NW Branch": 7.0
+}
+
+# appointment slots per bank (start time, end time)
+appointments = {
+    "NE Branch": [("08:00", "09:00"), ("09:15", "10:30")],
+    "SE Branch": [("09:00", "09:30"), ("13:15", "14:15"), ("15:00", "17:00")],
+    "SW Branch": [("11:00", "13:30")],
+    "NW Branch": [("08:15", "08:45"), ("13:15", "14:15"), ("15:00", "17:00"), ("17:00", "18:00")]
+}
+
+```
+
+<br>
+
+Adaptive Card Builder allows us to break up the construction of this into more manageable programmatic blocks. 
+<br>
+
+We'll utilize loops to construct a card for each bank, complete with its appointment info and a link to view the banks location on a map. 
+<br>
+
+Let's first add our bank info and an image onto the card:
+
+```python
+# initialize our card
+card = AdaptiveCard()
+
+# loop over branches - each one will have a mini-card to itself
+for branch in branches:
+    card.add(TextBlock(text=f"{distances[branch]} miles away", separator="true", spacing="large"))
+    card.add(ColumnSet())
+    
+    # First column - bank info
+    card.add(Column(width=2))
+    card.add(TextBlock(text="BANK OF LINGFIELD BRANCH"))
+    card.add(TextBlock(text=branch, size="ExtraLarge", weight="Bolder", spacing="None"))
+    card.add(TextBlock(text="5 stars", isSubtle=True, spacing="None"))
+    card.add(TextBlock(text="Bank Review"*10, size="Small", wrap="true"))
+    
+    card.up_one_level() # Back up to column set
+    
+    # Second column - image
+    card.add(Column(width=1))
+    img = "https://s17026.pcdn.co/wp-content/uploads/sites/9/2018/08/Business-bank-account-e1534519443766.jpeg"
+    card.add(Image(url=img))
+    
+    card.up_one_level() #Back up to column set
+    card.up_one_level() #Back up to Container
+```
+
+<br>
+
+**Now to add our interactive elements:**
+- The "View on Map" button
+- Expandible "View Appointments" card
+
+```python
+    # add action set to contain our interactive elements
+    card.add(ActionSet())
+
+    # First add our "View on Map" button
+    card.add(ActionOpenUrl(url="map_url.com", title="View on Map"), is_action=True)
+    
+    # create expandible card to show all our bank-specific appointment items
+    card.add(ActionShowCard(title="View Appointments"), is_action=True)
+    
+    # Save a checkpoint at this level to come back to later
+    action_showcard_level = card.save_level()
+
+    # now loops over appointment items and add them
+    for (start_time, end_time) in appointments[branch]:
+        card.add(ColumnSet())
+        
+        # Add our slots, start, end times
+        row_items = ["Slot", start_time, end_time]
+        for item in row_items:
+            card.add(Column(style="emphasis", verticalContentAlignment="Center"))
+            card.add(TextBlock(text=item, horizontalAlignment="Center"))
+            card.up_one_level() # Back to column set level
+
+        # Add the "Book This!" button, in the final column
+        card.add(Column())
+        card.add(ActionSet())
+        card.add(ActionSubmit(title="Book this!", data={"Appt": f"({start_time}, {end_time})"}), is_action=True)
+        card.load_level(action_showcard_level) # back to showcard's body
+    
+    # Go back to the main body of the card, ready for next branch
+    card.back_to_top()
+```
+
+<br>
+
+**Finally, output the result to a JSON**:
+
+```python
+card.to_json()
+```
