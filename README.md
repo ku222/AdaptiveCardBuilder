@@ -41,7 +41,7 @@ card.to_json()
 <br>
 
 
-<img src="https://user-images.githubusercontent.com/44293915/83967653-7ac06000-a8bb-11ea-843a-d045856ddf7f.png" alt="table" width="400"/>
+<img src="https://user-images.githubusercontent.com/44293915/83967653-7ac06000-a8bb-11ea-843a-d045856ddf7f.png" alt="table" width="500"/>
 
 
 <br>
@@ -49,7 +49,7 @@ card.to_json()
 
 ## Concepts
 
-The **AdaptiveCard** class centrally handles all construction operations: <br>
+The ```AdaptiveCard``` class centrally handles all construction operations: <br>
 
 ```python
 from adaptivecardbuilder.classes import *
@@ -84,7 +84,7 @@ card_json = card.to_json() # output to json
 
 When rendered:
 
-<img src="https://user-images.githubusercontent.com/44293915/83965757-ff0be680-a8ad-11ea-8936-108e3faa6fee.png" alt="table" width="400"/>
+<img src="https://user-images.githubusercontent.com/44293915/83965757-ff0be680-a8ad-11ea-8936-108e3faa6fee.png" alt="table" width="500"/>
 
 <br>
 <br>
@@ -107,8 +107,9 @@ print(element)
 <br>
 <br>
 
-**General Logic** <br>
-The AdaptiveCard class has an internal 'pointer'. When we add an element to the card, the element is **added to the container** of whichever object is being pointed at. 
+**Pointer Logic** <br>
+
+The ```AdaptiveCard``` class has an internal ```pointer```. When we add an element to the card, the element is **added to the container** of whichever object is being pointed at. 
 <br>
 
 **When adding elements that can contain other elements** (e.g. column sets and columns), the pointer will by default **recurse into the added element**, so that any elements added thereafter will go straight into the added element's container. <br>
@@ -117,7 +118,22 @@ This is essentially a **depth-first** approach to building cards:
 
 ```python
 card = AdaptiveCard() 
+       
+    # |--Card               <- Pointer
+    # |   |--Schema="XXX"
+    # |   |--Version="1.0"
+    # |   |--Body=[]
+    # |   |--Actions=[]
+
 card.add(TextBlock(text="Header", weight="Bolder"))
+
+    # |--Card
+    # |   |--Schema="XXX"
+    # |   |--Version="1.0"
+    # |   |--Body               <- Pointer
+    # |       |--TextBlock
+    # |   |--Actions
+
 card.add(TextBlock(text="Subheader"))
 card.add(TextBlock(text="*Quote*", isSubtle="true"))
 
@@ -173,7 +189,7 @@ card.add(TextBlock(text="<Column 1 Contents>"))
 <br>
 Rendered: <br>
 
-<img src="https://user-images.githubusercontent.com/44293915/83966745-fd452180-a8b3-11ea-9115-0056f8667102.png" alt="table" width="400"/>
+<img src="https://user-images.githubusercontent.com/44293915/83966745-fd452180-a8b3-11ea-9115-0056f8667102.png" alt="table" width="500"/>
 
 
 <br>
@@ -181,7 +197,7 @@ Rendered: <br>
 
 
 As a depth-first approach, we'll need to **back ourselves out** of a container once we are done adding elements to it. <br>
-We can do so easily using the *up_one_level()* method, which just moves us back up the element tree:
+We can do so easily using the ```up_one_level()``` method, which just moves us back up the element tree:
 
 ```python
 card = AdaptiveCard()
@@ -249,6 +265,114 @@ card.add(TextBlock(text="Column 2 Contents"))
     # |           |--Column         <- Pointer
     # |               |--TextBlock
     # |   |--Actions
+```
+
+<br>
+
+Rendered: <br>
+
+<img src="https://user-images.githubusercontent.com/44293915/83967818-d17a6980-a8bc-11ea-9518-1a3e15dfa38e.png" alt="table" width="500"/>
+
+<br>
+<br>
+
+
+We can easily incorporate expandable "Show Cards", input boxes, and actionable buttons too.
+Let's first move our pointer back to the top level using the ```back_to_top()``` method:
+
+```python
+card.back_to_top() # back to top of tree
+
+    # |--Card                   <- Pointer
+    # |   |--Schema="XXX"
+    # |   |--Version="1.0"
+    # |   |--Body               
+    # |       |--TextBlock
+    # |       |--TextBlock
+    # |       |--TextBlock
+    # |       |--ColumnSet       
+    # |           |--Column        
+    # |               |--TextBlock
+    # |           |--Column         
+    # |               |--TextBlock
+    # |   |--Actions
+```
+
+<br>
+
+Now let's add actions to the card's **Actions** container. <br>
+
+The ```add()``` method has an optional ```is_action``` parameter - if we set this to ```True``` when adding an element, then the element is added to the card's Actions container instead of its Body:
+
+```python
+# Adding single url action
+card.add(ActionOpenUrl(url="someurl.com", title="Open Me"), is_action=True)
+
+    # |--Card                   
+    # |   |--Schema="XXX"
+    # |   |--Version="1.0"
+    # |   |--Body               
+    # |       |--TextBlock
+    # |       |--TextBlock
+    # |       |--TextBlock
+    # |       |--ColumnSet       
+    # |           |--Column        
+    # |               |--TextBlock
+    # |           |--Column         
+    # |               |--TextBlock
+    # |   |--Actions                    <- Pointer
+    # |       |--ActionOpenUrl
+
+```
+
+<br>
+
+<img src="https://user-images.githubusercontent.com/44293915/83968535-da216e80-a8c1-11ea-8dd2-33ff5aa21fc3.png" alt="table" width="500"/>
+
+
+<br>
+<br>
+
+We can also add actions from 
+
+```python
+# Adding actions
+card.add(ActionShowCard(title="Click to Comment"), is_action=True)
+
+    # |--Card                   
+    # |   |--Schema="XXX"
+    # |   |--Version="1.0"
+    # |   |--Body               
+    # |       |--TextBlock
+    # |       |--TextBlock
+    # |       |--TextBlock
+    # |       |--ColumnSet       
+    # |           |--Column        
+    # |               |--TextBlock
+    # |           |--Column         
+    # |               |--TextBlock
+    # |   |--Actions
+    # |       |--ActionShowCard     <- Pointer
+
+card.add(InputText(ID="input", placeholder="Add Comment Here"))
+card.add(ActionSubmit(title="OK"), is_action=True)
+
+    # |--Card                   
+    # |   |--Schema="XXX"
+    # |   |--Version="1.0"
+    # |   |--Body               
+    # |       |--TextBlock
+    # |       |--TextBlock
+    # |       |--TextBlock
+    # |       |--ColumnSet       
+    # |           |--Column        
+    # |               |--TextBlock
+    # |           |--Column         
+    # |               |--TextBlock
+    # |   |--Actions
+    # |       |--ActionShowCard     <- Pointer
+    # |           |--InputText
+    # |           |--ActionSubmit   
 ```
 
 
