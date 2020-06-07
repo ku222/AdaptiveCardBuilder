@@ -87,9 +87,9 @@ class AdaptiveItem:
         assert type(container) == list
         container.append(action)
         return action
-    def print_self(self):
-        return self.__dict__
-    
+    def __str__(self):
+        serialized = json.dumps(self, default=lambda o: o.__dict__, sort_keys=False, indent=4)
+        return serialized
     
 class Container(AdaptiveItem):
     def __init__(self, **kwargs):
@@ -250,6 +250,21 @@ card.to_json(for_print=False)
 
 #%%
 
+card = AdaptiveCard() # initialize
+card.add(TextBlock(text="Header", weight="Bolder"))
+card.add(TextBlock(text="Subheader"))
+card.add(TextBlock(text="*Quote*", isSubtle="true"))
+
+card.add(ColumnSet())
+card.add(Column(width=1))
+card.add(TextBlock(text="<Column 1 Contents>"))
+
+card.up_one_level() # move back to the column set level
+
+card.add(Column(width=1))
+card.add(TextBlock(text="Column 2 Contents"))
+
+card.to_json()
 
 #%%
 
@@ -405,3 +420,6 @@ for transaction in table:
 card.to_json()
 
 
+#%%
+
+import pypicheck

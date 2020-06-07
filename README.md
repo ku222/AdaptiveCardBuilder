@@ -1,146 +1,82 @@
-# Examples
-Some examples of using the Adaptive Card Builder classes
 
-<br/>
+# Adaptive Card Builder (Python)
 
-
-##  1. Creating a "Table"-type card to display tabular data
-
-**Intended Output - table with actionable buttons unique to each row**
-![enter image description here](https://user-images.githubusercontent.com/44293915/83948325-8442bd00-a814-11ea-9278-b2773ac9a1c2.png)
-<br>
-<br>
-
-**Raw Data Format**
-Picture this kind of HTTP response from a SQL database query regarding transactions data:
-```js
-sql_output = {
-	"Table1": [
-		{
-			'ID': 'TRN-349824',
-			'Amount': '$400.50',
-			'Receiver': "Walmart",
-			'Date': '29-05-2020'
-		},
-		{
-			'ID': 'TRN-334244',
-			'Amount': '$50.35',
-			'Receiver': 'Delta Airlines',
-			'Date': '01-06-2020'
-		},
-		{
-			'ID': 'TRN-503134',
-			'Amount': '$60.50',
-			'Receiver': 'Smoothie King',
-			'Date': '03-06-2020'
-		}
-	]
-}
-```
+**Build and Export Adaptive Cards Pythonically**<br>
+Construct adaptive cards element-by-element, like lego. <br>
+Build with minimal abstraction and maxiumum readability.
 
 <br>
-<br>
 
-**Formatting data**
-Let's convert this JSON into a list of lists:
+The **AdaptiveCard** class centrally handles all construction operations: <br>
 
 ```python
-# Helper function
-def to_tabular(json_list):
-    first_element = json_list[0]
-    headers = list(first_element.keys())
-    result_table = []
-    for item in json_list:
-        item_values = list(item.values())
-        result_table.append(item_values)
-        return (headers, result_table)
+from adaptivecardbuilder.classes import *
 
-(headers, table) = to_tabular(sql_output['Table1'])
+card = AdaptiveCard() # initialize
+card.add(TextBlock(text="Header", weight="Bolder"))
+card.add(TextBlock(text="Subheader"))
+card.add(TextBlock(text="*Quote*", isSubtle="true"))
 
-print(headers)
-print(table)
->>>['ID', 'Amount', 'Receiver', 'Date']
->>>[['TRN-349824', '$400.50', 'Walmart', '29-05-2020'],
-    ['TRN-334244', '$50.35', 'Delta Airlines', '01-06-2020'],
-    ['TRN-503134', '$60.50', 'Smoothie King', '03-06-2020']]
+card_json = card.to_json() # output to json
 ```
 
 <br>
-<br>
+When rendered:
 
-**Initialize our Adaptive Card and add headers**
-```python
-card = AdaptiveCard() # Initialize our card
-
-card.add(ColumnSet()) # Add a ColumnSet
-
-for header in headers:
-    card.add(Column()) 
-    card.add(TextBlock(text=header, horizontalAlignment="center")) # add text
-    card.up_one_level() # Back to ColumnSet level, ready to add more columns
-```
+![Simple Table](https://user-images.githubusercontent.com/44293915/83965757-ff0be680-a8ad-11ea-8936-108e3faa6fee.png)
 
 <br>
 
-|ID|Amount|Reciever|Date
-|--|--|--|--|
 
 
-
-<br>
-<br>
-
-**Add a final "Suspicious" column, where we'll place buttons on each row later**
+**Each individual element** is implemented as a class <br>
+These are simply object representations of the standard Adaptive Card elements
 
 ```python
-card.add(Column())
-card.add(TextBlock(text="Suspicious", horizontalAlignment="center", weight="Bolder"))
-card.back_to_top() # Back to ColumnSet level again
+element = TextBlock(text="Header", weight="Bolder")
+print(element)
+
+>>> {
+        "type": "TextBlock",
+        "text": "Header",
+        "weight": "Bolder"
+    }
 ```
+
 <br>
 
-|ID|Amount|Reciever|Date|Suspicious
-|--|--|--|--|--|
-
-<br> 
+**General Logic** <br>
+The AdaptiveCard class has an internal 'pointer'. When we add an element to the card, the element is added to wherever that pointer is. 
 <br>
 
-**Let's now add the transactions, line by line**
+**When adding elements that can contain other elements** (e.g. column sets and columns), the card's pointer will, by default, **recurse into the added container**, so that any elements added thereafter will go straight into this container. <br>
+
+This is essentially a **depth-first** approach to building cards.
 
 ```python
-for transaction in table:
-    card.add(ColumnSet()) # 'add' pointer is now inside the ColumnSet
-    
-    for element in transaction:
-        card.add(Column()) # 'add' pointer is now inside the Column
-        card.add(TextBlock(text=element, horizontalAlignment="center"))
-        card.up_one_level() # move pointer back to ColumnSet level
+card.add(ColumnSet()) # pointer now at the column set level
+card.add(Column(width=1)) # pointer now at the column level
+card.add(TextBlock(text="<Column 1 Contents>"))
 ```
 
-|ID|Amount|Reciever|Date|Suspicious
-|--|-------|-------|-----|---------|
-|TRN-349824|$400.50|Walmart|29-05-2020
 
+![Column 1 added](https://user-images.githubusercontent.com/44293915/83966745-fd452180-a8b3-11ea-9115-0056f8667102.png)
 
 <br>
-Now add the button as the last column entry
+
+
+As a depth-first approach, we'll need to **back ourselves out** of a container once we are done adding elements to it.
+
+We can do so easily using the *up_one_level()* method, which essentially just moves us back up the element tree
 
 ```python
-for transaction in table:
-    card.add(ColumnSet()) # 'add' pointer is now inside the ColumnSet
-    
-    for element in transaction:
-        card.add(Column()) # 'add' pointer is now inside the Column
-        card.add(TextBlock(text=element, horizontalAlignment="center"))
-        card.up_one_level() # move pointer back to ColumnSet level
-        
-# Add a "Flag" button to allow users to report suspicious transactions 
-    card.add(Column())
-    card.add(ActionSet())
-    transaction_id = transaction[0]
-    flag_url = "https://pngimage.net/wp-content/uploads/2018/06/red-flag-png-5.png"
-    card.add(ActionSubmit(iconUrl=flag_url, data={"Transaction_ID": transaction_id}))
-    card.back_to_top() # Go back to the top level, ready to add our next row
-```
+card.add(ColumnSet()) # pointer now at the column set level
+card.add(Column(width=1)) # pointer now at the column level
+card.add(TextBlock(text="<Column 1 Contents>"))
 
+card.up_one_level() # move back to the column set level
+
+card.add(Column(width=1)) # pointer now at the column level
+card.add(TextBlock(text="Column 2 Contents"))
+```
 
