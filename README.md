@@ -3,12 +3,51 @@
 
 <br>
 
-**Build and Export Adaptive Cards Pythonically**<br>
+**Build and Export Adaptive Cards Programmatically**<br>
 Construct adaptive cards element-by-element, like lego. <br>
-Build with minimal abstraction and maximum readability.
+Build pythonically, with minimal abstraction and maximum readability.
+
+<br>
+
+
+```python
+# initialize card
+card = AdaptiveCard()
+
+# Add a textblock
+card.add(TextBlock(text="0.45 miles away", separator="true", spacing="large"))
+
+# add column set
+card.add(ColumnSet())
+
+# First column contents
+card.add(Column(width=2))
+card.add(TextBlock(text="BANK OF LINGFIELD BRANCH"))
+card.add(TextBlock(text="NE Branch", size="ExtraLarge", weight="Bolder"))
+card.add(TextBlock(text="4.2 stars", isSubtle=True, spacing="None"))
+card.add(TextBlock(text=f"Some review text for illustration", size="Small"))
+
+# Back up to column set
+card.up_one_level() 
+
+# Second column contents
+card.add(Column(width=1))
+card.add(Image(url="https://s17026.pcdn.co/wp-content/uploads/sites/9/2018/08/Business-bank-account-e1534519443766.jpeg"))
+
+# Output to json
+card.to_json()
+```
+
+<br>
+
+
+<img src="https://user-images.githubusercontent.com/44293915/83967653-7ac06000-a8bb-11ea-843a-d045856ddf7f.png" alt="table" width="400"/>
+
 
 <br>
 <br>
+
+## Concepts
 
 The **AdaptiveCard** class centrally handles all construction operations: <br>
 
@@ -45,7 +84,7 @@ card_json = card.to_json() # output to json
 
 When rendered:
 
-![Simple Table](https://user-images.githubusercontent.com/44293915/83965757-ff0be680-a8ad-11ea-8936-108e3faa6fee.png)
+<img src="https://user-images.githubusercontent.com/44293915/83965757-ff0be680-a8ad-11ea-8936-108e3faa6fee.png" alt="table" width="400"/>
 
 <br>
 <br>
@@ -132,16 +171,16 @@ card.add(TextBlock(text="<Column 1 Contents>"))
 
 ```
 <br>
-Rendered:
+Rendered: <br>
 
-![Column 1 added](https://user-images.githubusercontent.com/44293915/83966745-fd452180-a8b3-11ea-9115-0056f8667102.png)
+<img src="https://user-images.githubusercontent.com/44293915/83966745-fd452180-a8b3-11ea-9115-0056f8667102.png" alt="table" width="400"/>
+
 
 <br>
 <br>
 
 
-As a depth-first approach, we'll need to **back ourselves out** of a container once we are done adding elements to it.
-
+As a depth-first approach, we'll need to **back ourselves out** of a container once we are done adding elements to it. <br>
 We can do so easily using the *up_one_level()* method, which just moves us back up the element tree:
 
 ```python
