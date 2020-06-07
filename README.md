@@ -9,6 +9,15 @@
 
 <br>
 
+**Learn about Adaptive Cards:** <br>
+- Home Page: https://adaptivecards.io/
+- Adaptive Card Designer: https://adaptivecards.io/designer/
+- Schema Explorer: https://adaptivecards.io/explorer/
+- Documentation: https://docs.microsoft.com/en-us/adaptive-cards/
+
+<br>
+
+### Adaptive Card Builder "Hello World":
 
 ```python
 # initialize card
@@ -34,7 +43,7 @@ card.up_one_level()
 card.add(Column(width=1))
 card.add(Image(url="https://s17026.pcdn.co/wp-content/uploads/sites/9/2018/08/Business-bank-account-e1534519443766.jpeg"))
 
-# Output to json
+# Serialize to a json payload with a one-liner
 card.to_json()
 ```
 
