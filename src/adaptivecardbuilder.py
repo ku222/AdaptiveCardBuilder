@@ -1,14 +1,18 @@
+
+
 import json
 
 
 class AdaptiveCard:
-    def __init__(self, schema="http://adaptivecards.io/schemas/adaptive-card.json", version="1.0"):
+    # An Adaptive Card, containing a free-form body of card elements, and an optional set of actions.
+    def __init__(self, schema="http://adaptivecards.io/schemas/adaptive-card.json", version="1.2", **kwargs):
         self.schema = schema
         self.version = version
         self.type = "AdaptiveCard"
         self.body = []
         self.actions = []
         self.pointer = self
+        self.__dict__.update(kwargs)
     
     def set_pointer(self, item):
         self.pointer = item
@@ -46,7 +50,7 @@ class AdaptiveCard:
     
     def to_json(
         self,
-        version="1.0",
+        version="1.2",
         schema="http://adaptivecards.io/schemas/adaptive-card.json",
         for_print=False
         ):
@@ -133,7 +137,7 @@ class TextBlock(AdaptiveItem):
         self.type = "TextBlock"
         self.text = text
         self.__dict__.update(kwargs)
-
+        
 
 class ImageSet(AdaptiveItem):
     def __init__(self, **kwargs):
@@ -219,3 +223,107 @@ class InputText(AdaptiveItem):
         self.type = "Input.Text"
         self.id = ID
         self.__dict__.update(kwargs)
+
+
+class Media(AdaptiveItem):
+    def __init__(self, **kwargs):
+        super().__init__()
+        self.type = "Media"
+        self.sources = []
+        self.__dict__.update(kwargs)
+    def get_item_container(self):
+        return self.sources
+    
+    
+class MediaSource(AdaptiveItem):
+    def __init__(self, mime_type, url):
+        super().__init__()
+        self.mimeType = mime_type
+        self.url = url
+        
+        
+class RichTextBlock(AdaptiveItem):
+    def __init__(self, **kwargs):
+        super().__init__()
+        self.type = "RichTextBlock"
+        self.inlines = []
+        self.__dict__.update(kwargs)
+    def get_item_container(self):
+        return self.inlines
+    
+    
+class TextRun(AdaptiveItem):
+    def __init__(self, text, **kwargs):
+        super().__init__()
+        self.type = "TextRun"
+        self.text = text
+        
+        
+class ActionToggleVisibility(AdaptiveItem):
+    def __init__(self, **kwargs):
+        super().__init__()
+        self.type = "Action.ToggleVisibility"
+        self.targetElements = []
+        self.__dict__.update(kwargs)
+    def get_item_container(self):
+        return self.targetElements
+
+
+class TargetElement(AdaptiveItem):
+    def __init__(self, element_id, **kwargs):
+        super().__init__()
+        self.elementId = element_id
+        self.__dict__.update(kwargs)
+        
+        
+class InputNumber(AdaptiveItem):
+    def __init__(self, ID, **kwargs):
+        super().__init__()
+        self.type = "Input.Number"
+        self.id = ID
+        self.__dict__.update(kwargs)
+        
+
+class InputDate(AdaptiveItem):
+    def __init__(self, ID, **kwargs):
+        super().__init__()
+        self.type = "Input.Date"
+        self.id = ID
+        self.__dict__.update(kwargs)
+
+
+class InputTime(AdaptiveItem):
+    def __init__(self, ID, **kwargs):
+        super().__init__()
+        self.type = "Input.Time"
+        self.id = ID
+        self.__dict__.update(kwargs)
+        
+        
+class InputToggle(AdaptiveItem):
+    def __init__(self, title, ID, **kwargs):
+        super().__init__()
+        self.type = "Input.Toggle"
+        self.title = title
+        self.id = ID
+        self.__dict__.update(kwargs)
+        
+
+class InputChoiceSet(AdaptiveItem):
+    def __init__(self, ID, **kwargs):
+        super().__init__()
+        self.type = "Input.ChoiceSet"
+        self.id = ID
+        self.choices = []
+        self.__dict__.update(kwargs)
+    def get_item_container(self):
+        return self.choices
+
+
+class InputChoice(AdaptiveItem):
+    def __init__(self, title, value):
+        super().__init__()
+        self.title = title
+        self.value = value
+        
+        
