@@ -75,7 +75,7 @@ Output when rendered: <br>
 The ```AdaptiveCard``` class centrally handles all construction & element-addition operations: <br>
 
 ```python
-from adaptivecardbuilder.classes import *
+from adaptivecardbuilder import *
 
 card = AdaptiveCard() # initialize
 
