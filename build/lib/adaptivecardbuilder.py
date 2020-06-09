@@ -1,5 +1,3 @@
-
-
 import json
 
 
@@ -12,6 +10,7 @@ class AdaptiveCard:
         self.body = []
         self.actions = []
         self.pointer = self
+        self.is_action = False
         self.__dict__.update(kwargs)
     
     def set_pointer(self, item):
@@ -23,16 +22,38 @@ class AdaptiveCard:
     def load_level(self, level):
         self.set_pointer(level)
     
-    def add(self, element, recurse=True, is_action=False):
-        self.pointer.add_action(element) if is_action else self.pointer.add_item(element)
-        element.previous = self.pointer
-        if recurse:
+    def add(self, element, is_action=None):
+        # If none, default to self's action setting
+        if is_action == None:
+            is_action = self.is_action
+        # check for list - recurse into list if true
+        if type(element) == list:
+            for e in element:
+                self.add(e)
+        # check for codewords in our string input
+        elif type(element) == str:
+            back_to_top = "^" in element
+            up_one_level = "<" in element
+            item = "item" in element.lower()
+            action = "action" in element.lower()
+            if back_to_top:
+                self.back_to_top()
+            elif up_one_level:
+                self.up_one_level()
+            elif item:
+                self.is_action = False
+            elif action:
+                self.is_action = True
+        # else default addition of adaptive elements
+        elif issubclass(type(element), AdaptiveItem):
+            self.pointer.add_action(element) if is_action else self.pointer.add_item(element)
+            element.previous = self.pointer
             # check if added element has any containers of its own
             element_item_container = element.get_item_container()
             element_action_container = element.get_action_container()
             if type(element_item_container) == list or type(element_action_container) == list:
                 self.set_pointer(element)
-        return element
+            return element
     
     def add_item(self, item):
         self.body.append(item)
@@ -57,10 +78,13 @@ class AdaptiveCard:
         def dictify(card):
             has_pointer = True if getattr(card, 'pointer', 'no') != 'no' else False
             has_previous = True if getattr(card, 'previous', 'no') != 'no' else False
+            has_is_action = True if getattr(card, 'is_action', 'no') != 'no' else False
             if has_pointer:
                 del card.pointer
             if has_previous:
                 del card.previous
+            if has_is_action:
+                del card.is_action
             return card.__dict__
         
         self.schema = schema
@@ -325,5 +349,4 @@ class InputChoice(AdaptiveItem):
         super().__init__()
         self.title = title
         self.value = value
-        
         
