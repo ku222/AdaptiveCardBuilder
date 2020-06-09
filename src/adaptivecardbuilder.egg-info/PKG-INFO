@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: adaptivecardbuilder
-Version: 0.0.2
+Version: 0.0.3
 Summary: Easily Build and Export Adaptive Cards Through Python
 Home-page: https://github.com/ku222/AdaptiveCardBuilder
 Author: Kovid Uppal
@@ -17,6 +17,18 @@ Description:
         
         <br>
         
+        **View this package on pypi** <br>
+        https://pypi.org/project/adaptivecardbuilder/
+        
+        <br>
+        
+        **Installation via pip** <br>
+        ```python
+        pip install adaptivecardbuilder
+        ```
+        
+        <br>
+        
         **Learn about Adaptive Cards:** <br>
         - Home Page: https://adaptivecards.io/
         - Adaptive Card Designer: https://adaptivecards.io/designer/
@@ -28,6 +40,8 @@ Description:
         ### Adaptive Card Builder "Hello World":
         
         ```python
+        from adaptivecardbuilder import *
+        
         # initialize card
         card = AdaptiveCard()
         
@@ -69,7 +83,7 @@ Description:
         The ```AdaptiveCard``` class centrally handles all construction & element-addition operations: <br>
         
         ```python
-        from adaptivecardbuilder.classes import *
+        from adaptivecardbuilder import *
         
         card = AdaptiveCard() # initialize
         

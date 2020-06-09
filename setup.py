@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name='adaptivecardbuilder',
-    version='0.0.3',
+    version='0.0.4',
     description='Easily Build and Export Adaptive Cards Through Python',
     py_modules=['adaptivecardbuilder'],
     package_dir={'': 'src'},

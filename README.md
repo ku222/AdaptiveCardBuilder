@@ -3,8 +3,9 @@
 
 **Easily Build and Export Adaptive Cards Through Python**<br>
 - Programmatically construct adaptive cards like Lego, without the learning curve of Adaptive Card 'Templating'
-- Avoids the deeply-nested visual format of traditional JSON editing
+- Avoid the curly-braces jungle of traditional JSON editing
 - Build pythonically, but with minimal abstraction while preserving readability
+- Output built cards to JSON in a single method call
 - Send output to any channel with Adaptive Card support to be rendered.
 
 <br>
@@ -70,6 +71,59 @@ Output when rendered: <br>
 <br>
 <br>
 
+## A "Visual" Alternative
+
+The ```AdaptiveCard``` class also supports a more visual approach to building cards by passing a list of elements to the ```add()``` method instead. <br> 
+
+This allows us to freely indent our code within the method call and better illustrate card structure:
+
+```python
+card = AdaptiveCard()
+
+# Add a list of elements
+card.add([
+    "items -----------------",
+    TextBlock("Top Level"),
+    ColumnSet(),
+        Column(),
+            TextBlock("Column 1 Top Item"),
+            TextBlock("Column 1 Second Item"),
+            "<",
+        Column(),
+            TextBlock("Column 2 Top Item"),
+            TextBlock("Column 2 Second Item"),
+            "<",
+        "<",
+    TextBlock("Lowest Level"),
+    
+    
+    "actions -----------------",
+    ActionOpenUrl(title="View Website", url="someurl.com"),
+    ActionShowCard(title="Click to Comment"),
+        "item after this",
+        InputText(ID="comment", placeholder="Type Here"),
+        "action again",
+        ActionSubmit(title="Submit Comment")
+])
+
+card.to_json()
+```
+
+<br>
+
+<img src="https://user-images.githubusercontent.com/44293915/84180249-177f2b00-aa7f-11ea-94ec-c2923a9d3bd1.png" alt="table" width="400"/>
+
+<br>
+
+
+- Strings containing ```"<"``` move us up/back a level in the tree
+- Strings containing ```"^"``` will move us back to the top of the tree
+- Strings containing ```"item"``` tell ```AdaptiveCard``` to expect item elements below
+- Strings containing ```"action"``` tell ```AdaptiveCard``` to expect action elements below
+
+
+<br>
+
 ## Concepts
 
 The ```AdaptiveCard``` class centrally handles all construction & element-addition operations: <br>
@@ -114,6 +168,7 @@ When rendered:
 
 
 **Each individual element** is implemented as a class. <br>
+
 These are simply Python object representations of the standard Adaptive Card elements that take keyworded arguments as parameters like so:
 
 ```python
