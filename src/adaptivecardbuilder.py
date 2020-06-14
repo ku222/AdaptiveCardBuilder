@@ -281,6 +281,7 @@ class TextRun(AdaptiveItem):
         super().__init__()
         self.type = "TextRun"
         self.text = text
+        self.__dict__.update(kwargs)
         
         
 class ActionToggleVisibility(AdaptiveItem):
