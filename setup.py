@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name='adaptivecardbuilder',
-    version='0.0.6',
+    version='0.0.7',
     description='Easily Build and Export Adaptive Cards Through Python',
     py_modules=['adaptivecardbuilder'],
     package_dir={'': 'src'},
@@ -13,6 +13,7 @@ setup(
     url="https://github.com/ku222/AdaptiveCardBuilder",
     author="Kovid Uppal",
     author_email="kovid.uppal@gmail.com",
+    install_requires=['requests'],
     long_description=long_description,
     long_description_content_type="text/markdown",
     classifiers=[

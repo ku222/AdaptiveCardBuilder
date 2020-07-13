@@ -1,5 +1,6 @@
-import json
 
+import json
+import requests
 
 class AdaptiveCard:
     # An Adaptive Card, containing a free-form body of card elements, and an optional set of actions.
@@ -73,28 +74,122 @@ class AdaptiveCard:
         self,
         version="1.2",
         schema="http://adaptivecards.io/schemas/adaptive-card.json",
-        for_print=False
+        translator_to_lang=None,
+        translator_key=None,
+        translator_region='global',
+        translator_base_url="https://api.cognitive.microsofttranslator.com/translate?api-version=3.0"
         ):
         def dictify(card):
             has_pointer = True if getattr(card, 'pointer', 'no') != 'no' else False
             has_previous = True if getattr(card, 'previous', 'no') != 'no' else False
             has_is_action = True if getattr(card, 'is_action', 'no') != 'no' else False
+            has_dont_translate = True if getattr(card, 'dont_translate', 'no') != 'no' else False
             if has_pointer:
                 del card.pointer
             if has_previous:
                 del card.previous
             if has_is_action:
                 del card.is_action
+            if has_dont_translate:
+                del card.dont_translate
             return card.__dict__
         
         self.schema = schema
         self.version = version
-        if for_print:
-            serialized = json.dumps(self, default=dictify, sort_keys=False, indent=4)
-            print(serialized)
-        else:
-            serialized = json.dumps(self, default=dictify, sort_keys=False)
-            return serialized
+        # Try translate if needed first
+        if translator_to_lang:
+            assert translator_key
+            self._translate_elements(
+                to_lang=translator_to_lang,
+                translator_key=translator_key,
+                region=translator_region,
+                base_url=translator_base_url
+            )
+        
+        # Return serialized card
+        serialized = json.dumps(self, default=dictify, sort_keys=False)
+        return serialized
+        
+    def _prepare_elements_for_translation(self):
+        '''
+        Utility function to recursively pull out all pairs of objects and their attributes
+        Called by the _translate_elements() method
+        '''
+        object_attribute_pairs = []
+        # Recursive method to explore items, pull out translatable attributes
+        def recursive_find(adaptive_object):
+            nonlocal object_attribute_pairs
+            translatable_attributes = adaptive_object.translatable_attributes()
+            # First double check for a dont_translate attribute
+            has_dont_translate = True if getattr(adaptive_object, 'dont_translate', 'no') != 'no' else False
+            # Pull out translatable attr
+            if not has_dont_translate:
+                if translatable_attributes:
+                    for attribute in translatable_attributes:
+                        if hasattr(adaptive_object, attribute):
+                            object_attribute_pairs.append((adaptive_object, attribute))
+            # Recurse into own items
+            item_container = adaptive_object.get_item_container()
+            action_container = adaptive_object.get_action_container()
+            if item_container:
+                for item in item_container:
+                    recursive_find(item)
+            if action_container:
+                for action in action_container:
+                    recursive_find(action)
+        # Call recursive find
+        self.back_to_top()
+        for item in self.body:
+            recursive_find(item)
+        for action in self.actions:
+            recursive_find(action)
+        return object_attribute_pairs
+    
+    def _translate_elements(self, to_lang, translator_key, region='global', base_url="https://api.cognitive.microsofttranslator.com/translate?api-version=3.0"):
+        '''
+        Utility function to translate all our card's elements for us
+        First calls the _prepare_elements_for_translation method to recursively pull out items and their text attributes
+        Then calls the Azure Translator 3.0 API to translate all elements
+        Then swaps the current text with the corresponding translated text 
+        '''
+        supported_languages = ['af', 'ar', 'bn', 'bs', 'bg', 'yue', 'ca', 'zh-Hans', 'zh-Hant', 'hr', 'cs', 'da', 'nl',
+                                'en', 'et', 'fj', 'fil', 'fi', 'fr', 'de', 'el', 'gu', 'ht', 'he', 'hi', 'mww', 'hu', 'is',
+                                'id', 'ga', 'it', 'ja', 'kn', 'kk', 'sw', 'tlh-Latn', 'tlh-Piqd', 'ko', 'lv', 'lt', 'mg', 'ms',
+                                'ml', 'mt', 'mi', 'mr', 'nb', 'fa', 'pl', 'pt-br', 'pt-pt', 'pa', 'otq', 'ro', 'ru', 'sm', 'sr-Cyrl',
+                                'sr-Latn', 'sk', 'sl', 'es', 'sv', 'ty', 'ta', 'te', 'th', 'to', 'tr', 'uk', 'ur', 'vi', 'cy', 'yua']
+        # to_lang value must be supported
+        assert to_lang in supported_languages
+        # Pull out object attribute pairs
+        object_attribute_pairs = self._prepare_elements_for_translation()
+        # The array can have at most 100 elements.
+        assert len(object_attribute_pairs) <= 100
+        
+        # Prep HTTP request
+        headers = {
+            "Ocp-Apim-Subscription-Key": translator_key,
+            "Ocp-Apim-Subscription-Region": region,
+            "Content-Type": "application/json; charset=UTF-8",
+            "Content-Length": str(len(object_attribute_pairs)),
+            }
+        
+        # Construct body
+        body = []
+        for (adaptive_object, attribute) in object_attribute_pairs:
+            item_to_add = {"Text": getattr(adaptive_object, attribute)}
+            body.append(item_to_add)
+        
+        # Post request, return
+        response = requests.post(url=f"{base_url}&to={to_lang}", headers=headers, json=body)
+        assert response.status_code == 200
+        
+        # Unpack translations
+        for (i, response_dict) in enumerate(response.json()):
+            translations_array = response_dict['translations']
+            first_result = translations_array[0]
+            translated_text = first_result['text']
+            # Update own objects
+            (adaptive_object, attribute) = object_attribute_pairs[i]
+            setattr(adaptive_object, attribute, translated_text)
     
 
 class AdaptiveItem:
@@ -102,6 +197,8 @@ class AdaptiveItem:
         return None
     def get_action_container(self):
         return None
+    def translatable_attributes(self):
+        return []
     def add_item(self, item):
         container = self.get_item_container()
         assert type(container) == list
@@ -161,6 +258,8 @@ class TextBlock(AdaptiveItem):
         self.type = "TextBlock"
         self.text = text
         self.__dict__.update(kwargs)
+    def translatable_attributes(self):
+        return ['text']
         
 
 class ImageSet(AdaptiveItem):
@@ -202,6 +301,8 @@ class ActionOpenUrl(AdaptiveItem):
         self.type = "Action.OpenUrl"
         self.url = url
         self.__dict__.update(kwargs)
+    def translatable_attributes(self):
+        return ['title']
         
         
 class ActionSubmit(AdaptiveItem):
@@ -209,6 +310,8 @@ class ActionSubmit(AdaptiveItem):
         super().__init__()
         self.type = "Action.Submit"
         self.__dict__.update(kwargs)
+    def translatable_attributes(self):
+        return ['title']
 
         
 class ActionShowCard(AdaptiveItem):
@@ -221,6 +324,8 @@ class ActionShowCard(AdaptiveItem):
         return self.card.body
     def get_action_container(self):
         return self.card.actions
+    def translatable_attributes(self):
+        return ['title']
     
     
 class FactSet(AdaptiveItem):
@@ -239,6 +344,8 @@ class Fact(AdaptiveItem):
         self.type = "FactSet"
         self.title = title
         self.value = value
+    def translatable_attributes(self):
+        return ['title', 'value']
       
 
 class InputText(AdaptiveItem):
@@ -247,6 +354,8 @@ class InputText(AdaptiveItem):
         self.type = "Input.Text"
         self.id = ID
         self.__dict__.update(kwargs)
+    def translatable_attributes(self):
+        return ['title', 'placeholder', 'value']
 
 
 class Media(AdaptiveItem):
@@ -282,6 +391,8 @@ class TextRun(AdaptiveItem):
         self.type = "TextRun"
         self.text = text
         self.__dict__.update(kwargs)
+    def translatable_attributes(self):
+        return ['text']
         
         
 class ActionToggleVisibility(AdaptiveItem):
@@ -292,6 +403,8 @@ class ActionToggleVisibility(AdaptiveItem):
         self.__dict__.update(kwargs)
     def get_item_container(self):
         return self.targetElements
+    def translatable_attributes(self):
+        return ['title']
 
 
 class TargetElement(AdaptiveItem):
@@ -307,6 +420,8 @@ class InputNumber(AdaptiveItem):
         self.type = "Input.Number"
         self.id = ID
         self.__dict__.update(kwargs)
+    def translatable_attributes(self):
+        return ['placeholder']
         
 
 class InputDate(AdaptiveItem):
@@ -332,6 +447,8 @@ class InputToggle(AdaptiveItem):
         self.title = title
         self.id = ID
         self.__dict__.update(kwargs)
+    def translatable_attributes(self):
+        return ['title']
         
 
 class InputChoiceSet(AdaptiveItem):
@@ -350,4 +467,6 @@ class InputChoice(AdaptiveItem):
         super().__init__()
         self.title = title
         self.value = value
+    def translatable_attributes(self):
+        return ['title', 'value']
         

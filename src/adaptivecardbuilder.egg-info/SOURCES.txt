@@ -5,4 +5,5 @@ src/adaptivecardbuilder.py
 src/adaptivecardbuilder.egg-info/PKG-INFO
 src/adaptivecardbuilder.egg-info/SOURCES.txt
 src/adaptivecardbuilder.egg-info/dependency_links.txt
+src/adaptivecardbuilder.egg-info/requires.txt
 src/adaptivecardbuilder.egg-info/top_level.txt
