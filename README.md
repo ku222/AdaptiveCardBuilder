@@ -1,11 +1,12 @@
 
-# Python Adaptive Card Builder (PREVIEW)
+# Python Adaptive Card Builder
 
-**Easily Build and Export Adaptive Cards Through Python**<br>
+**Easily Build and Export Multilingual Adaptive Cards Through Python**<br>
 - Programmatically construct adaptive cards like Lego, without the learning curve of Adaptive Card 'Templating'
 - Avoid the curly-braces jungle of traditional JSON editing
 - Build pythonically, but with minimal abstraction while preserving readability
-- Output built cards to JSON in a single method call
+- Output built cards to JSON or a Python Dictionary in a single method call
+- Auto-translate all text elements in a card with a single method call
 - Send output to any channel with Adaptive Card support to be rendered.
 
 <br>
@@ -59,7 +60,7 @@ card.add(Column(width=1))
 card.add(Image(url="https://s17026.pcdn.co/wp-content/uploads/sites/9/2018/08/Business-bank-account-e1534519443766.jpeg"))
 
 # Serialize to a json payload with a one-liner
-card.to_json()
+await card.to_json()
 ```
 
 Output when rendered: <br>
@@ -70,19 +71,23 @@ Output when rendered: <br>
 
 <br>
 <br>
+<br>
 
 ## A "Visual" Alternative
 
 The ```AdaptiveCard``` class also supports a more visual approach to building cards by passing a list of elements to the ```add()``` method instead. <br> 
 
-This allows us to freely indent our code within the method call and better illustrate card structure:
+This allows us to freely indent our code within the method call and better illustrate card structure.
+
+When using this visual alternative approach to building cards, we can use specific strings to execute logic.
+- Strings containing ```"<"``` move us up/back a level in the tree
+- Strings containing ```"^"``` will move us back to the top of the tree
 
 ```python
 card = AdaptiveCard()
 
 # Add a list of elements
 card.add([
-    "items -----------------",
     TextBlock("Top Level"),
     ColumnSet(),
         Column(),
@@ -96,32 +101,47 @@ card.add([
         "<",
     TextBlock("Lowest Level"),
     
-    
-    "actions -----------------",
     ActionOpenUrl(title="View Website", url="someurl.com"),
     ActionShowCard(title="Click to Comment"),
-        "item after this",
         InputText(ID="comment", placeholder="Type Here"),
-        "action again",
         ActionSubmit(title="Submit Comment")
 ])
 
-card.to_json()
+await card.to_json()
+```
+<br>
+
+<img src="https://user-images.githubusercontent.com/44293915/84180249-177f2b00-aa7f-11ea-94ec-c2923a9d3bd1.png"  width="400"/>
+
+<br>
+<br>
+<br>
+
+
+## Translating Card Elements
+
+Passing translator arguments to the ```to_json()``` method will translate cards. <br>
+Using the example above, we can translate the created card in the same method call. <br>
+To view a list of supported languages and language codes, go to:
+https://docs.microsoft.com/en-us/azure/cognitive-services/translator/language-support
+
+
+
+```python
+# Translate all text in card to Malay
+await card.to_json(translator_to_lang='ms', translator_key='<YOUR AZURE API KEY>')
 ```
 
-<br>
-
-<img src="https://user-images.githubusercontent.com/44293915/84180249-177f2b00-aa7f-11ea-94ec-c2923a9d3bd1.png" alt="table" width="400"/>
+<img src="https://i.ibb.co/kBTJb1m/Malay-screenshot.png" width="400"/>
 
 <br>
+<br>
 
+If any ```translator_to_lang``` argument is passed, translation will apply to all elements with translatable text attributes. <br>
 
-- Strings containing ```"<"``` move us up/back a level in the tree
-- Strings containing ```"^"``` will move us back to the top of the tree
-- Strings containing ```"item"``` tell ```AdaptiveCard``` to expect item elements below
-- Strings containing ```"action"``` tell ```AdaptiveCard``` to expect action elements below
+To specify that a given Adaptive element **should not** be translated, simply pass the keyworded argument ```dont_translate=True``` during the construction of any element, and AdaptiveCardBuilder will leave this specific element untranslated.
 
-
+<br>
 <br>
 
 ## Concepts
@@ -157,7 +177,6 @@ card_json = card.to_json() # output to json
 ```
 
 <br>
-<br>
 
 When rendered:
 
@@ -165,16 +184,18 @@ When rendered:
 
 <br>
 <br>
+<br>
 
+**Each individual adaptive object (e.g. TextBlock, Column)** is implemented as a class. <br>
 
-**Each individual element** is implemented as a class. <br>
+These are simply Python object representations of the standard Adaptive Card elements that take keyworded arguments as parameters. <br>
+View the Schema Explorer at https://adaptivecards.io/explorer/ to see which keyword arguments each Adaptive Object is allowed to take.
 
-These are simply Python object representations of the standard Adaptive Card elements that take keyworded arguments as parameters like so:
 
 ```python
-element = TextBlock(text="Header", weight="Bolder")
-print(element)
+TextBlock(text="Header", weight="Bolder")
 
+# Internal representation
 >>> {
         "type": "TextBlock",
         "text": "Header",
@@ -182,15 +203,17 @@ print(element)
     }
 ```
 
+
+
 <br>
 <br>
 
 ### Pointer Logic
 
-Central to the ```AdaptiveCard``` class is an internal ```pointer``` attribute. When we add an element to the card, the element is by default **added to the item container** of whichever object is being pointed at. 
+Central to the ```AdaptiveCard``` class is an internal ```_pointer``` attribute. When we add an element to the card, the element is by default **added to the item container** of whichever object is being pointed at. 
 <br>
 
-Conceptually, an object can have up to two kinds of containers (python ```list```s):
+Conceptually, an adaptive object (e.g. Column, Container) can have up to two kinds of containers (python ```list```s):
 1. **Item** containers (these hold non-interactive elements like TextBlocks, Images)
 2. **Action** containers (these hold interactive actions like ActionShowUrl, ActionSubmit)
 
@@ -201,8 +224,11 @@ For instance:
 - ```ActionSet``` objects have a single **action** (```actions=[]```) container
 
 
-The ```card.add()``` method by default adds any new elements to the **item** container of an object being pointed at. However, we can add to the **actions** container by setting ```is_action=True```. We'll come back to examples of adding actions later.
+The ```card.add()``` method will add a given AdaptiveObject to the appropriate container. For instance, if an Action-type object is passed, such as a ```ActionSubmit``` or ```ActionOpenUrl```, then this will be added to the parent object's **action** container.
 
+If the parent object does not have the appropriate container for the element being added, then this will throw an ```AssertionError``` and a corresponding suggestion.
+
+<br>
 <br>
 
 ### Recursing Into an Added Element
@@ -403,10 +429,11 @@ card.to_json()
 
 <br>
 <br>
+<br>
 
 ## Adding Actions
 
-The ```add()``` method has an optional ```is_action``` parameter - if we set this to ```True``` when adding an element to the object being pointed at, then the element is instead added to that object's **actions** container (if it has one).
+As previously mentioned, the AdaptiveCard's ```add()``` method will automatically add action elements to the appropriate containers.
 
 Let's first move our pointer back to the top level using the ```back_to_top()``` method:
 
@@ -431,12 +458,12 @@ card.back_to_top() # back to top of tree
 <br>
 
 Our pointer is now pointing at the main Card object. <br>
-Because it has an **Actions** container, we can add actions to it by setting ```is_action=True``` within the ```add()``` method:
+Because it has an **Actions** container, the next action element to be added will be sent there.
 
 
 ```python
 # Adding single url action
-card.add(ActionOpenUrl(url="someurl.com", title="Open Me"), is_action=True)
+card.add(ActionOpenUrl(url="someurl.com", title="Open Me"))
 
     # |--Card                       <- Pointer
     # |   |--Schema="XXX"
@@ -458,334 +485,3 @@ card.add(ActionOpenUrl(url="someurl.com", title="Open Me"), is_action=True)
 <br>
 
 <img src="https://user-images.githubusercontent.com/44293915/83968535-da216e80-a8c1-11ea-8dd2-33ff5aa21fc3.png" alt="table" width="500"/>
-
-
-<br>
-<br>
-
-
-## Worked Example 1 - Creating a simple table with row-specific action buttons
-
-<br> 
-
-**Intended Output** <br>
-Table with actionable buttons unique to each row:
-
-- Each row is represented as a ```ColumnSet```
-  - Each column in the row is a ```Column``` object
-    - Values in each column are ```TextBlock``` objects
-
-<img src="https://user-images.githubusercontent.com/44293915/83948325-8442bd00-a814-11ea-9278-b2773ac9a1c2.png" alt="table" width="500"/>
-
-
-
-
-
-<br>
-<br>
-
-
-**Full Code** <br>
-Here's our full Adaptive Card Builder-related code for creating the table from our input data:
-
-```python
-card = AdaptiveCard()
-
-# Add our first "row" for table headers
-card.add(ColumnSet()) 
-
-# Add headers as columns + bold textblocks
-for header in headers:
-    card.add(Column()) 
-    card.add(TextBlock(text=header, horizontalAlignment="center", weight="Bolder"))
-    card.up_one_level() # Back to ColumnSet level
-
-# Back to Card's main body
-card.back_to_top()
-
-# Adding our transactions
-for transaction in table:
-    card.add(ColumnSet()) 
-    
-    for element in transaction:
-        card.add(Column()) 
-        card.add(TextBlock(text=element, horizontalAlignment="center"))
-        card.up_one_level() # move pointer back to ColumnSet level
-
-    # Before moving to the next row, add a "Flag" button
-    card.add(Column())
-    card.add(ActionSet())
-    flag_url = "https://pngimage.net/wp-content/uploads/2018/06/red-flag-png-5.png"
-    transaction_id = transaction[0]
-    data = {"ID": transaction_id} # data to submit to our hosting interface
-    card.add(ActionSubmit(iconUrl=flag_url, data=data), is_action=True)
-    card.back_to_top() # Go back to the top level, ready to add our next row
-```
-
-
-<br>
-<br>
-
-### Step-by-Step Walkthrough <br>
-
-**Raw Data Format** <br>
-Picture this kind of HTTP response from a SQL database query regarding transactions data:
-```json
-sql_output = {
-	"Table1": [
-		{
-			"ID": "TRN-349824",
-			"Amount": "$400.50",
-			"Receiver": "Walmart",
-			"Date": "29-05-2020"
-		},
-		{
-			"ID": "TRN-334244",
-			"Amount": "$50.35",
-			"Receiver": "Delta Airlines",
-			"Date": "01-06-2020"
-		},
-		{
-			"ID": "TRN-503134",
-			"Amount": "$60.50",
-			"Receiver": "Smoothie King",
-			"Date": "03-06-2020"
-		}
-	]
-}
-```
-
-<br>
-<br>
-
-**Formatting data** <br>
-Let's convert this JSON into a list of lists which makes it a bit more workable
-
-```python
-# One-off helper function
-def to_tabular(json_list):
-    first_element = json_list[0]
-    headers = list(first_element.keys())
-    result_table = []
-    for item in json_list:
-        item_values = list(item.values())
-        result_table.append(item_values)
-        return (headers, result_table)
-
-(headers, table) = to_tabular(sql_output['Table1'])
-headers.append('Suspicious') # Add 'suspicious' column
-
-print(headers)
-print(table)
->>>['ID', 'Amount', 'Receiver', 'Date', 'Suspicious']
->>>[['TRN-349824', '$400.50', 'Walmart', '29-05-2020'],
-    ['TRN-334244', '$50.35', 'Delta Airlines', '01-06-2020'],
-    ['TRN-503134', '$60.50', 'Smoothie King', '03-06-2020']]
-```
-
-<br>
-<br>
-
-**Initialize our Adaptive Card and add headers**
-```python
-card = AdaptiveCard()
-
-# Add our first "row" for table headers
-card.add(ColumnSet()) 
-
-# Add headers as columns + bold textblocks
-for header in headers:
-    card.add(Column()) 
-    card.add(TextBlock(text=header, horizontalAlignment="center", weight="Bolder"))
-    card.up_one_level() # Back to ColumnSet level
-```
-
-<br>
-
-Here's what we have so far:
-
-|ID|Amount|Reciever|Date|Suspicious
-|--|--|--|--|--|
-
-<br> 
-<br>
-
-**Let's now add the transactions, line by line**
-
-```python
-...
-# Back to Card's main body
-card.back_to_top()
-
-# Adding our transactions
-for transaction in table:
-    card.add(ColumnSet()) 
-    
-    for element in transaction:
-        card.add(Column()) 
-        card.add(TextBlock(text=element, horizontalAlignment="center"))
-        card.up_one_level() # move pointer back to ColumnSet level
-```
-
-Here's what we have after the inner loop is complete (first row):
-
-|ID|Amount|Reciever|Date|Suspicious
-|--|-------|-------|-----|---------|
-|TRN-349824|$400.50|Walmart|29-05-2020
-
-
-<br>
-Now let's add the button as the last column entry
-
-```python
-...
-    for element in transaction:
-        card.add(Column()) 
-        card.add(TextBlock(text=element, horizontalAlignment="center"))
-        card.up_one_level() # move pointer back to ColumnSet level
-
-    # Before moving to the next row, add a "Flag" button
-    card.add(Column())
-    card.add(ActionSet())
-    flag_url = "https://pngimage.net/wp-content/uploads/2018/06/red-flag-png-5.png"
-    transaction_id = transaction[0]
-    data = {"ID": transaction_id} # data to submit to our hosting interface
-    card.add(ActionSubmit(iconUrl=flag_url, data=data), is_action=True)
-    card.back_to_top() # Go back to the top level, ready to add our next row
-```
-
-
-|ID|Amount|Reciever|Date|Suspicious
-|--|-------|-------|-----|---------|
-|TRN-349824|$400.50|Walmart|29-05-2020| [FLAG-BUTTON]
-
-<br>
-
-
-**When the outer loop is complete**, we have a fully populated table complete with buttons on each row that a user can click on to report suspicious transactions. Each button is specific to the row, and will submit the transaction ID of that row (or whatever data we like) to whichever interface is hosting the Adaptive Card.
-
-
-<br>
-<br>
-
-# Worked Example 2: Banks and Appointments
-
-
-### List of nearest banks and their free appointment slots
-
-
-Example of the finished product: <br>
-
-<img src="https://user-images.githubusercontent.com/44293915/83976434-ba09a380-a8f1-11ea-9ec6-711fe357e128.png" alt="table" width="500"/>
-
-<br>
-
-
-Here's an example of the data behind this:
-
-```python
-# branch names
-branches = ["NE Branch", "SE Branch", "SW Branch", "NW Branch"]
-
-# distances in miles
-distances = { 
-    "NE Branch": 4.5,
-    "SE Branch": 5.0,
-    "SW Branch": 6.5,
-    "NW Branch": 7.0
-}
-
-# appointment slots per bank (start time, end time)
-appointments = {
-    "NE Branch": [("08:00", "09:00"), ("09:15", "10:30")],
-    "SE Branch": [("09:00", "09:30"), ("13:15", "14:15"), ("15:00", "17:00")],
-    "SW Branch": [("11:00", "13:30")],
-    "NW Branch": [("08:15", "08:45"), ("13:15", "14:15"), ("15:00", "17:00"), ("17:00", "18:00")]
-}
-
-```
-
-<br>
-
-Adaptive Card Builder allows us to break up the construction of this into more manageable programmatic blocks. 
-<br>
-
-We'll utilize loops to construct a card for each bank, complete with its appointment info and a link to view the banks location on a map. 
-<br>
-
-Let's first add our bank info and an image onto the card:
-
-```python
-# initialize our card
-card = AdaptiveCard()
-
-# loop over branches - each one will have a mini-card to itself
-for branch in branches:
-    card.add(TextBlock(text=f"{distances[branch]} miles away", separator="true", spacing="large"))
-    card.add(ColumnSet())
-    
-    # First column - bank info
-    card.add(Column(width=2))
-    card.add(TextBlock(text="BANK OF LINGFIELD BRANCH"))
-    card.add(TextBlock(text=branch, size="ExtraLarge", weight="Bolder", spacing="None"))
-    card.add(TextBlock(text="5 stars", isSubtle=True, spacing="None"))
-    card.add(TextBlock(text="Bank Review"*10, size="Small", wrap="true"))
-    
-    card.up_one_level() # Back up to column set
-    
-    # Second column - image
-    card.add(Column(width=1))
-    img = "https://s17026.pcdn.co/wp-content/uploads/sites/9/2018/08/Business-bank-account-e1534519443766.jpeg"
-    card.add(Image(url=img))
-    
-    card.up_one_level() #Back up to column set
-    card.up_one_level() #Back up to Container
-```
-
-<br>
-
-**Now to add our interactive elements:**
-- The "View on Map" button
-- Expandible "View Appointments" card
-
-```python
-    # add action set to contain our interactive elements
-    card.add(ActionSet())
-
-    # First add our "View on Map" button
-    card.add(ActionOpenUrl(url="map_url.com", title="View on Map"), is_action=True)
-    
-    # create expandible card to show all our bank-specific appointment items
-    card.add(ActionShowCard(title="View Appointments"), is_action=True)
-    
-    # Save a checkpoint at this level to come back to later
-    action_showcard_level = card.save_level()
-
-    # now loops over appointment items and add them
-    for (start_time, end_time) in appointments[branch]:
-        card.add(ColumnSet())
-        
-        # Add our slots, start, end times
-        row_items = ["Slot", start_time, end_time]
-        for item in row_items:
-            card.add(Column(style="emphasis", verticalContentAlignment="Center"))
-            card.add(TextBlock(text=item, horizontalAlignment="Center"))
-            card.up_one_level() # Back to column set level
-
-        # Add the "Book This!" button, in the final column
-        card.add(Column())
-        card.add(ActionSet())
-        card.add(ActionSubmit(title="Book this!", data={"Appt": f"({start_time}, {end_time})"}), is_action=True)
-        card.load_level(action_showcard_level) # back to showcard's body
-    
-    # Go back to the main body of the card, ready for next branch
-    card.back_to_top()
-```
-
-<br>
-
-**Finally, output the result to a JSON**:
-
-```python
-card.to_json()
-```
