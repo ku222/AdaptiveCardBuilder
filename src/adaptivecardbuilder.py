@@ -3,6 +3,7 @@ from typing import Union, List, Tuple
 import aiohttp
 from aiohttp import ClientResponse, ClientSession
 import asyncio
+import copy
 
 class AdaptiveObject:
     '''
@@ -426,6 +427,30 @@ class AdaptiveCard:
         self._pointer = self
         self.__dict__.update(kwargs)
 
+    def __add__(self, card: "AdaptiveCard") -> "AdaptiveCard":
+        '''
+        Adds two cards together by combining the elements in their bodies.
+        To preserve intra-card ordering of elements, it moves all actions
+        in the outermost action container of each card into their bodies,
+        by placing them in ActionSets instead.
+        '''
+        self_ = copy.deepcopy(self)
+        card = copy.deepcopy(card)
+        if self_.actions:
+            # Move own actions into body
+            action_set = ActionSet()
+            action_set.actions.extend(self_.actions)
+            self_.body.append(action_set)
+            self_.actions = []
+        if card.actions:
+            # Move other card's actions into body
+            action_set = ActionSet()
+            action_set.actions.extend(card.actions)
+            card.body.append(action_set)
+            card.actions = []
+        self_.body.extend(card.body)
+        return self_
+
     def save_level(self) -> AdaptiveObject:
         '''
         Saves the current pointer level into a variable, allowing us
@@ -451,7 +476,7 @@ class AdaptiveCard:
         """
         self._pointer = level
 
-    def add(self, element: Union[str, list, AdaptiveObject]):
+    def add(self, element: Union[str, list, AdaptiveObject], preserve_level=False):
         """
         Main method allowing AdaptiveItems to be added to the card.
         Can accept either a String, AdaptiveObject or List of either.
@@ -460,11 +485,17 @@ class AdaptiveCard:
 
         Codeword strings can be passed - card will execute logic based
         on the exact string passed.
+
+        If preserve_level argument is set to True, then the pointer will
+        return back to the level the add function was first used at
         """
+        # Preserve level if required
+        if preserve_level:
+            self._preserve_level = self.save_level()
         # check for list - recurse into list if true
         if isinstance(element, list):
             for e in element:
-                self.add(e)
+                self.add(e, preserve_level=False)
         # check for codewords in our string input
         elif isinstance(element, str):
             self.back_to_top() if "^" in element else None
@@ -480,6 +511,9 @@ class AdaptiveCard:
             if isinstance(element_item_container, list) or isinstance(element_action_container, list):
                 # Set pointer to this new element if it has its own containers
                 self._pointer = element
+        # Reload original level if applicable
+        if preserve_level:
+            self.load_level(self._preserve_level)
         return self
 
     def _add_item(self, item: AdaptiveObject) -> None:
@@ -528,9 +562,11 @@ class AdaptiveCard:
             '''Helper method to delete construction-related attributes'''
             has_pointer = True if getattr(item, '_pointer', 'no') != 'no' else False
             has_previous = True if getattr(item, '_previous', 'no') != 'no' else False
+            has_preserve_level = True if getattr(item, '_preserve_level', 'no') != 'no' else False
             has_dont_translate = True if getattr(item, 'dont_translate', 'no') != 'no' else False
             if has_pointer: del item._pointer
             if has_previous: del item._previous
+            if has_preserve_level: del item._preserve_level
             if has_dont_translate: del item.dont_translate
             return item.__dict__
         # Return serialized card
@@ -669,6 +705,20 @@ class AdaptiveCard:
         '''Chunks a list into a list of lists with size n'''
         n = max(1, n)
         return [a_list[i:i+n] for i in range(0, len(a_list), n)]
+
+
+def combine_adaptive_cards(cards: List[AdaptiveCard]) -> AdaptiveCard:
+    '''
+    Combines a list of adaptive cards into a single adaptive card.
+    Uses the first card as the base card, then adds all subsequent
+    cards to this first card.
+    '''
+    first_card = cards[0]
+    if len(cards) < 2:
+        return first_card
+    for card in cards[1:]:
+        first_card += card
+    return first_card
 
 
 class ActionShowCard(AdaptiveObject):

@@ -7,7 +7,7 @@
 - Build pythonically, but with minimal abstraction while preserving readability
 - Output built cards to JSON or a Python Dictionary in a single method call
 - Auto-translate all text elements in a card with a single method call
-- Send output to any channel with Adaptive Card support to be rendered.
+- Combine multiple individual cards through the + operator
 
 <br>
 
@@ -63,7 +63,7 @@ card.add(Image(url="https://s17026.pcdn.co/wp-content/uploads/sites/9/2018/08/Bu
 await card.to_json()
 ```
 
-Output when rendered: <br>
+Output when rendered in https://adaptivecards.io/visualizer/ : <br>
 
 
 <img src="https://user-images.githubusercontent.com/44293915/83967653-7ac06000-a8bb-11ea-843a-d045856ddf7f.png" alt="table" width="500"/>
@@ -109,13 +109,77 @@ card.add([
 
 await card.to_json()
 ```
-<br>
+
+Output when rendered in https://adaptivecards.io/visualizer/ : <br>
 
 <img src="https://user-images.githubusercontent.com/44293915/84180249-177f2b00-aa7f-11ea-94ec-c2923a9d3bd1.png"  width="400"/>
 
 <br>
 <br>
 <br>
+
+
+## Combining/Chaining Cards
+
+We can also combine the contents of multiple cards through the ```+``` operator:
+
+
+```python
+def create_single_card(input_text_id: int):
+    card = AdaptiveCard()
+    card.add([
+        TextBlock("Top Level"),
+        ColumnSet(),
+            Column(),
+                TextBlock("Column 1 Top Item"),
+                TextBlock("Column 1 Second Item"),
+                "<",
+            Column(),
+                TextBlock("Column 2 Top Item"),
+                TextBlock("Column 2 Second Item"),
+                "<",
+            "<",
+        TextBlock("Lowest Level"),
+        
+        ActionOpenUrl(title="View Website", url="someurl.com"),
+        ActionShowCard(title="Click to Comment"),
+            InputText(ID=f"comment_{input_text_id}", placeholder="Type Here"),
+            ActionSubmit(title="Submit Comment")
+    ])
+    return card
+
+# Use above function to create cards
+card1 = create_single_card(1)
+card2 = create_single_card(2)
+# Add the contents of card1 and card2
+combined_card = card1 + card2
+await combined_card.to_json()
+```
+<br>
+
+Output when rendered in https://adaptivecards.io/visualizer/ : 
+
+<img src="https://i.ibb.co/McPxYYF/Malay-screenshot.png" width="400"/>
+
+<br>
+
+To preserve intra-card ordering of elements, AdaptiveCardBuilder moves all actions in the outermost action container of each card into their bodies by placing them in ActionSets instead. Each constituent card's actions is therefore attached to the appropriate portion of the combined card.
+
+The ```combine_adaptive_cards``` function can also be used to combine a list of adaptive cards together, in a left-to-right fashion. The following code essentially produces the same result as the code above, except an arbitrary length list of cards can now be passed:
+
+```python
+card1 = create_single_card(1)
+card2 = create_single_card(2)
+card3 = create_single_card(3)
+
+# Add the contents of all above cards
+combined_card = combine_adaptive_cards([card1, card2, card3])
+await combined_card.to_json()
+```
+
+<br>
+<br>
+
 
 
 ## Translating Card Elements
@@ -173,7 +237,7 @@ card.add(TextBlock(text="*Quote*", isSubtle="true"))
     # |       |--TextBlock
     # |   |--Actions
 
-card_json = card.to_json() # output to json
+card_json = await card.to_json() # output to json
 ```
 
 <br>
@@ -421,7 +485,7 @@ for i in range(1, 6):
 # reset pointer back to container level
 card.load_level(container_level)
 card.add(TextBlock(text="Text at the container level, below all the nested containers"))
-card.to_json()
+await card.to_json()
 ```
 
 

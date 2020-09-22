@@ -5,8 +5,8 @@ with open("README.md", "r") as fh:
 
 setup(
     name='adaptivecardbuilder',
-    version='0.0.8',
-    description='Easily Build and Export Adaptive Cards Through Python',
+    version='0.0.9',
+    description='Easily Build and Export Multilingual Adaptive Cards Through Python',
     py_modules=['adaptivecardbuilder'],
     package_dir={'': 'src'},
     data_files = [("", ["LICENSE.txt"])],
